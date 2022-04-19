@@ -10,12 +10,12 @@
  * for more details.
  *
  * @author: eladb@google.com
- * Date: 2022-4-18
+ * Date: 2022-4-19
 **/
 
 
 //USER_TO_DO: Fill in url
-var SPREADSHEET_URL = '--------';
+var SPREADSHEET_URL = '---';
 var spreadsheet;
 var resultsSheet;
 var gAdsAndManualHeaders;
@@ -66,7 +66,10 @@ var CONST = {
   COLOR_HIGH: "color_high",
   COLOR_LOW: "color_low",
 
-  NEED_TO_DELETE: "need_to_delete_debug"
+  NEED_TO_DELETE: "need_to_delete_debug",
+
+//USER_TO_DO: Adjust prices division to your UI/email needs.
+  DEVIDE_COST_BY : 10000000 //1,000,000
 };
 
 var STATS = {
@@ -187,18 +190,18 @@ function rowsToCmapaignDict(campaigns, response, value) {
  *
  * @return {string} the next piece of the alert text to include in the email.
  */
-function generateAlertForSingleAccount(account, spreadsheet, currentRowToWrite) {
+function generateAlertForSingleAccount(cuurentAccount, spreadsheet, currentRowToWrite) {
   var resultsSheet = spreadsheet.getSheetByName(CONST.RESULTS_SHEET);
   var currentStatsDict = {};
   var pastStatsDict = {};
   var fullScanAccountIds = SheetUtil.getFullScanAccountIds();
   var excludedFullAccountIds = SheetUtil.getExcludedFullAccountIds();
   var alertTextForAccount = [];
-  var relevantLabelsForCurrentAccount = getExistingAccountLabels(SheetUtil.getAccountLabelsFilter(), account);
+  var relevantLabelsForCurrentAccount = getExistingAccountLabels(SheetUtil.getAccountLabelsFilter(), cuurentAccount);
   Logger.log("current account matches these monitored account labels = " + relevantLabelsForCurrentAccount);
 
   function _fillDictsWithFullAccountScanStats() {
-    var currentAccountId = account.getCustomerId();
+    var currentAccountId = cuurentAccount.getCustomerId();
     /** Is currenly scanned account match id filter*/
     if ((fullScanAccountIds.length > 0 && fullScanAccountIds[0].toUpperCase() == "ALL")
       || fullScanAccountIds.includes(currentAccountId) ||
@@ -208,7 +211,6 @@ function generateAlertForSingleAccount(account, spreadsheet, currentRowToWrite) 
       }
       Logger.log("Full scan for account " + currentAccountId);
       var currentFullAccount = SheetUtil.getCurrentQueryForFullAccount();
-      Logger.log("With this query: " + currentFullAccount);
       var presentFullAccount = AdsApp.report(currentFullAccount, REPORTING_OPTIONS);
       var pastFullAccount = AdsApp.report(SheetUtil.getPastQueryForFullAccount(), REPORTING_OPTIONS);
       populateStatsDict(currentStatsDict, presentFullAccount.rows());
@@ -271,8 +273,8 @@ function generateAlertForSingleAccount(account, spreadsheet, currentRowToWrite) 
     var rowData =
       [
         JSON.stringify(relevantLabelsForCurrentAccount),
-        account.getCustomerId(),
-        mccManager.getCurrentAccountName(account),
+        cuurentAccount.getCustomerId(),
+        mccManager.getCurrentAccountName(cuurentAccount),
         campaignId,
         campaignName];
 
@@ -293,8 +295,8 @@ function generateAlertForSingleAccount(account, spreadsheet, currentRowToWrite) 
     rowData = rowData.concat([formattingFuncTwoDigits(current), formattingFuncTwoDigits(past), formattingFuncTwoDigits(current - past), formattingFuncTwoDigits(current / past)]);
 
     setAvgToBuldingBlockStats(STATS.cost_micros.GAQL_name, currentStats, pastStats);
-    current /= 1000000;
-    past /= 1000000;
+    current /= CONST.DEVIDE_COST_BY;
+    past /= CONST.DEVIDE_COST_BY;
     rowData = rowData.concat([formattingFuncTwoDigits(current), formattingFuncTwoDigits(past), formattingFuncTwoDigits(current - past), formattingFuncTwoDigits(current / past)]);
 
     setAvgToBuldingBlockStats(STATS.conversions_value.GAQL_name, currentStats, pastStats);
@@ -304,7 +306,7 @@ function generateAlertForSingleAccount(account, spreadsheet, currentRowToWrite) 
       _manualCalc(resultStat, numerator, denominator, currentStats, pastStats, 1);
     }
     function _setManualPriceStats(resultStat, numerator, denominator, currentStats, pastStats) {
-      _manualCalc(resultStat, numerator, denominator, currentStats, pastStats, 1000000);
+      _manualCalc(resultStat, numerator, denominator, currentStats, pastStats, CONST.DEVIDE_COST_BY);
     }
     function _manualCalc(resultStat, numerator, denominator, currentStats, pastStats, devideBy) {
       currentStats[resultStat] = currentStats[numerator] / currentStats[denominator] / devideBy;
@@ -392,6 +394,11 @@ function isAboveMinimalDelta(statName, actualDelta) {
 //Add to future email body content
 //Email formatting
 function highlightThresholdsInTrixAndEmail(statNames, thresholdType, currentStats, pastStats, campaignCellInTrix) {
+
+var currencyCode = AdsApp.currentAccount().getCurrencyCode();
+currencyCode = (currencyCode== "USD") ? "$" : currencyCode;
+currencyCode = currencyCode+" ";
+
   var statsName = statNames.GAQL_name;
   var currentThresholdName = statNames.Named_range + "_" + thresholdType;
   var thresholds = SheetUtil.thresholds();
@@ -419,34 +426,34 @@ function highlightThresholdsInTrixAndEmail(statNames, thresholdType, currentStat
     percentageDeltaStr = formatNums(percentageDelta, 2) + "%";
   }
   else if (currentThresholdName.includes("cost_micros")) {
-    thresholdValueStr = "$" + formatNums(thresholdValue / 1000000, 2);
-    currentValueStr = "$" + Math.round(currentAvgValue / 1000000);
-    pastAvgValueStr = "$" + Math.round(pastAvgValue / 1000000);
-    numericDeltaStr = "$" + Math.round(numericDelta / 1000000);
+    thresholdValueStr = currencyCode + formatNums(thresholdValue / CONST.DEVIDE_COST_BY, 2);
+    currentValueStr = currencyCode + Math.round(currentAvgValue / CONST.DEVIDE_COST_BY);
+    pastAvgValueStr = currencyCode + Math.round(pastAvgValue / CONST.DEVIDE_COST_BY);
+    numericDeltaStr = currencyCode + Math.round(numericDelta / CONST.DEVIDE_COST_BY);
     percentageDeltaStr = formatNums(percentageDelta, 2) + "%";
   }
   //daily avg
   else if (currentThresholdName.includes("cost_per_conversion")) {
-    thresholdValueStr = "$" + formatNums(thresholdValue / 1000000, 2);
-    currentValueStr = "$" + formatNums(currentAvgValue / 1000000, 2);
-    pastAvgValueStr = "$" + formatNums(pastAvgValue / 1000000, 2);
-    numericDeltaStr = "$" + formatNums(numericDelta / 1000000, 2);
+    thresholdValueStr = currencyCode + formatNums(thresholdValue / CONST.DEVIDE_COST_BY, 2);
+    currentValueStr = currencyCode + formatNums(currentAvgValue / CONST.DEVIDE_COST_BY, 2);
+    pastAvgValueStr = currencyCode + formatNums(pastAvgValue / CONST.DEVIDE_COST_BY, 2);
+    numericDeltaStr = currencyCode + formatNums(numericDelta / CONST.DEVIDE_COST_BY, 2);
     percentageDeltaStr = formatNums(percentageDelta, 2) + "%";
   }
   //daily avg
   else if (currentThresholdName.includes("ctr") || currentThresholdName.includes("conversions_from_interactions_rate")) {
-    thresholdValueStr = formatNums(thresholdValue / 1000000, 3);
-    currentValueStr = formatNums(currentAvgValue / 1000000, 3);
-    pastAvgValueStr = formatNums(pastAvgValue / 1000000, 3);
-    numericDeltaStr = formatNums(numericDelta / 1000000, 3);
+    thresholdValueStr = formatNums(thresholdValue / CONST.DEVIDE_COST_BY, 3);
+    currentValueStr = formatNums(currentAvgValue / CONST.DEVIDE_COST_BY, 3);
+    pastAvgValueStr = formatNums(pastAvgValue / CONST.DEVIDE_COST_BY, 3);
+    numericDeltaStr = formatNums(numericDelta / CONST.DEVIDE_COST_BY, 3);
     percentageDeltaStr = formatNums(percentageDelta, 3) + "%";
   }
   //daily avg
   else if (currentThresholdName.includes("average_cpc")) {
-    thresholdValueStr = "$" + formatNums(thresholdValue / 1000000, 2);
-    currentValueStr = "$" + formatNums(currentAvgValue / 1000000, 1);
-    pastAvgValueStr = "$" + formatNums(pastAvgValue / 1000000, 1);
-    numericDeltaStr = "$" + formatNums(numericDelta / 1000000, 1);
+    thresholdValueStr = currencyCode + formatNums(thresholdValue / CONST.DEVIDE_COST_BY, 2);
+    currentValueStr = currencyCode + formatNums(currentAvgValue / CONST.DEVIDE_COST_BY, 1);
+    pastAvgValueStr = currencyCode + formatNums(pastAvgValue / CONST.DEVIDE_COST_BY, 1);
+    numericDeltaStr = currencyCode + formatNums(numericDelta / CONST.DEVIDE_COST_BY, 1);
     percentageDeltaStr = formatNums(percentageDelta, 2) + "%";
   }
 
