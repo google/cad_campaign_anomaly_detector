@@ -10,15 +10,16 @@
  * for more details.
  *
  * @author: eladb@google.com
- * Date: 2022-4-19
+ * Date: 2022-4-20
 **/
 
 
 //USER_TO_DO: Fill in url
-var SPREADSHEET_URL = '---';
+var SPREADSHEET_URL = '--------';
 var spreadsheet;
 var resultsSheet;
 var gAdsAndManualHeaders;
+var accountIdsAlreadyFullyScanned = [];
 
 var CONST = {
 
@@ -69,7 +70,7 @@ var CONST = {
   NEED_TO_DELETE: "need_to_delete_debug",
 
 //USER_TO_DO: Adjust prices division to your UI/email needs.
-  DEVIDE_COST_BY : 10000000 //1,000,000
+  DEVIDE_COST_BY: 1000000 //1,000,000
 };
 
 var STATS = {
@@ -115,7 +116,7 @@ var STATS = {
  * Configuration to be used for running reports.
  */
 var REPORTING_OPTIONS = {
-  apiVersion: 'v9'
+  apiVersion: 'v10'
 };
 
 function main() {
@@ -130,7 +131,7 @@ function main() {
   var fullScanAccountIds = SheetUtil.getFullScanAccountIds();
   var campaignIds = SheetUtil.getCampaignIds();
 
-  var allSubAccountsObj = (fullScanAccountIds[0].toUpperCase() != "ALL" && campaignIds == "") ? fullScanAccountIds : mccManager.getAllSubAccounts();
+  var allSubAccountsObj = (fullScanAccountIds[0].toUpperCase() != "ALL" && campaignIds == "") ? mccManager.getAccountsForIds(fullScanAccountIds) : mccManager.getAllSubAccounts();
   for (var index in allSubAccountsObj) {
     var currentAccount = allSubAccountsObj[index];
     Logger.log('Switching to account ' + currentAccount.getCustomerId());
@@ -190,18 +191,18 @@ function rowsToCmapaignDict(campaigns, response, value) {
  *
  * @return {string} the next piece of the alert text to include in the email.
  */
-function generateAlertForSingleAccount(cuurentAccount, spreadsheet, currentRowToWrite) {
+function generateAlertForSingleAccount(currentAccount, spreadsheet, currentRowToWrite) {
   var resultsSheet = spreadsheet.getSheetByName(CONST.RESULTS_SHEET);
   var currentStatsDict = {};
   var pastStatsDict = {};
   var fullScanAccountIds = SheetUtil.getFullScanAccountIds();
   var excludedFullAccountIds = SheetUtil.getExcludedFullAccountIds();
   var alertTextForAccount = [];
-  var relevantLabelsForCurrentAccount = getExistingAccountLabels(SheetUtil.getAccountLabelsFilter(), cuurentAccount);
+  var relevantLabelsForCurrentAccount = getExistingAccountLabels(SheetUtil.getAccountLabelsFilter(), currentAccount);
   Logger.log("current account matches these monitored account labels = " + relevantLabelsForCurrentAccount);
 
-  function _fillDictsWithFullAccountScanStats() {
-    var currentAccountId = cuurentAccount.getCustomerId();
+  function _fillDictsWithFullAccountScanStats(currentAccount) {
+    var currentAccountId = currentAccount.getCustomerId();
     /** Is currenly scanned account match id filter*/
     if ((fullScanAccountIds.length > 0 && fullScanAccountIds[0].toUpperCase() == "ALL")
       || fullScanAccountIds.includes(currentAccountId) ||
@@ -210,15 +211,16 @@ function generateAlertForSingleAccount(cuurentAccount, spreadsheet, currentRowTo
         return;
       }
       Logger.log("Full scan for account " + currentAccountId);
+      accountIdsAlreadyFullyScanned.push[currentAccountId];
       var currentFullAccount = SheetUtil.getCurrentQueryForFullAccount();
-      var presentFullAccount = AdsApp.report(currentFullAccount, REPORTING_OPTIONS);
+      var currentFullAccount = AdsApp.report(currentFullAccount, REPORTING_OPTIONS);
       var pastFullAccount = AdsApp.report(SheetUtil.getPastQueryForFullAccount(), REPORTING_OPTIONS);
-      populateStatsDict(currentStatsDict, presentFullAccount.rows());
+      populateStatsDict(currentStatsDict, currentFullAccount.rows());
       populateStatsDict(pastStatsDict, pastFullAccount.rows());
     }
   }
 
-  function _getCampaignDictForCurrentAccount() {
+  function _getCampaignDictForCurrentAccount(currentAccount) {
     //Campiagn Dict, not dependednt on the chosen accounts
     //We iterate all the account anyways
     var campaignDictForCurrentAccount = {};
@@ -227,7 +229,7 @@ function generateAlertForSingleAccount(cuurentAccount, spreadsheet, currentRowTo
     var campaignLabels = SheetUtil.getCampaignLabels();
     var excludedClause = excludedCampaignIds == "" ? "" : "AND campaign.id NOT IN (" + excludedCampaignIds + ")";
     if (campaignIds.length > 0) {
-      if (isCurrentAccountSelected && campaignIds.toUpperCase().includes("ALL_ENABLED_FOR_SELECTED_ACCOUNTS")) {
+      if (accountIdsAlreadyFullyScanned.includes(currentAccount) && campaignIds.toUpperCase().includes("ALL_ENABLED_FOR_SELECTED_ACCOUNTS")) {
         campaignIds = getAllcampaignForAccount(currentAccount);
       }
       var query = "SELECT campaign.id, campaign.name FROM campaign WHERE campaign.id IN (" + campaignIds + ") " + excludedClause;
@@ -242,6 +244,7 @@ function generateAlertForSingleAccount(cuurentAccount, spreadsheet, currentRowTo
     return campaignDictForCurrentAccount;
   }
 
+
   function _populateStatDictsWithCampaignsData(campaignDictForCurrentAccount) {
     var campaignIdsForCurrentAccount = Object.keys(campaignDictForCurrentAccount);
     Logger.log("Reporting for campaign ids =" + JSON.stringify(campaignIdsForCurrentAccount));
@@ -250,13 +253,13 @@ function generateAlertForSingleAccount(cuurentAccount, spreadsheet, currentRowTo
       var currentSpecificCampaigns = AdsApp.report(currentQuery, REPORTING_OPTIONS);
       var pastQuery = SheetUtil.getPastQueryForCampaigns().replace("__CAMPAIGN_IDS__", campaignIdsForCurrentAccount);
       var pastSpecificCampaigns = AdsApp.report(pastQuery, REPORTING_OPTIONS);
-      accumulateReportRows(currentStatsDict, currentSpecificCampaigns.rows());
-      accumulateReportRows(pastStatsDict, pastSpecificCampaigns.rows());
+      populateStatsDict(currentStatsDict, currentSpecificCampaigns.rows());
+      populateStatsDict(pastStatsDict, pastSpecificCampaigns.rows());
     }
   }
 
-  _fillDictsWithFullAccountScanStats();
-  var campaignDictForCurrentAccount = _getCampaignDictForCurrentAccount();
+  _fillDictsWithFullAccountScanStats(currentAccount);
+  var campaignDictForCurrentAccount = _getCampaignDictForCurrentAccount(currentAccount);
   _populateStatDictsWithCampaignsData(campaignDictForCurrentAccount);
 
   function _writeFromDictsToSheet() {
@@ -273,8 +276,8 @@ function generateAlertForSingleAccount(cuurentAccount, spreadsheet, currentRowTo
     var rowData =
       [
         JSON.stringify(relevantLabelsForCurrentAccount),
-        cuurentAccount.getCustomerId(),
-        mccManager.getCurrentAccountName(cuurentAccount),
+        currentAccount.getCustomerId(),
+        mccManager.getCurrentAccountName(currentAccount),
         campaignId,
         campaignName];
 
@@ -395,9 +398,9 @@ function isAboveMinimalDelta(statName, actualDelta) {
 //Email formatting
 function highlightThresholdsInTrixAndEmail(statNames, thresholdType, currentStats, pastStats, campaignCellInTrix) {
 
-var currencyCode = AdsApp.currentAccount().getCurrencyCode();
-currencyCode = (currencyCode== "USD") ? "$" : currencyCode;
-currencyCode = currencyCode+" ";
+  var currencyCode = AdsApp.currentAccount().getCurrencyCode();
+  currencyCode = (currencyCode == "USD") ? "$" : currencyCode;
+  currencyCode = currencyCode + " ";
 
   var statsName = statNames.GAQL_name;
   var currentThresholdName = statNames.Named_range + "_" + thresholdType;
@@ -759,7 +762,7 @@ function populateStatsDict(results, rows) {
     var id = row["campaign.id"] == undefined ?
       accountIdntifier :
       accountIdntifier + " : " + row["campaign.id"] + " : " + row["campaign.name"];
-    results[id] = accumulateReportRow(row, results[id]);
+    results[id] = accumulateToReportRows(row, results[id]);
   }
 }
 
@@ -775,7 +778,7 @@ function ZeroMetrics() {
 }
 
 //EACH ROW
-function accumulateReportRow(accForEntity, row) {
+function accumulateToReportRows(accForEntity, row) {
   if (row == undefined) {
     row = new ZeroMetrics().zeroLine;
   }
@@ -864,6 +867,17 @@ var mccManager = function () {
     return accounts;
   };
 
+
+  var getAccountsForIds = function (ids) {
+    var accounts = [];
+    var accountIterator = AdsManagerApp.accounts().withIds(ids).get();
+    while (accountIterator.hasNext()) {
+      var currentAccount = accountIterator.next();
+      accounts.push(currentAccount);
+    }
+    return accounts;
+  };
+
   /**
    * Returns the original MCC account.
    *
@@ -881,6 +895,7 @@ var mccManager = function () {
     mccAccount: getMccAccount,
     getAccountsForLabels: getAccountsForLabels,
     getAllSubAccounts: getAllSubAccounts,
-    getCurrentAccountName: getCurrentAccountName
+    getCurrentAccountName: getCurrentAccountName,
+    getAccountsForIds: getAccountsForIds
   };
 };
