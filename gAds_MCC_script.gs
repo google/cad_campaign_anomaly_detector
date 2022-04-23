@@ -483,7 +483,7 @@ function highlightThresholdsInTrixAndEmail(statNames, thresholdType, currentStat
 function generateEmailTextForCampiagn(accountIdOrCampaignId, campaignRowInTrix, currentStats, pastStats) {
 
   var alertTextForCampaign = ['<br>Anomalies for: ' + accountIdOrCampaignId +
-    '<br><table style="width:50%;border:1px solid black;"><tr style="border:1px solid black;"><th style="text-align:left;border:1px solid black;">Metric</th><th style="text-align:left;border:1px solid black;">Past</th><th style="text-align:left;border:1px solid black;">Current</th> <th style="text-align:left;border:1px solid black;">Δ</th> <th style="text-align:left;border:1px solid black;">Δ%</th></tr>'];
+    '<br><table style="width:50%;border:1px solid black;"><tr style="border:1px solid black;"><th style="text-align:left;border:1px solid black;">Metric</th><th style="text-align:left;border:1px solid black;">Current</th><th style="text-align:left;border:1px solid black;">Past</th> <th style="text-align:left;border:1px solid black;">Δ</th> <th style="text-align:left;border:1px solid black;">Δ%</th></tr>'];
 
   var cell = [campaignRowInTrix, STATS.impressions.Column];
   alertTextForCampaign.push(highlightThresholdsInTrixAndEmail(STATS.impressions, "high", currentStats, pastStats, cell));
