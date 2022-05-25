@@ -32,18 +32,18 @@ The solutions includes the following components:
 
 
 ## Video
-[Link] (https://www.google.com/url?q=https://drive.google.com/file/d/1UyCuo_n9XQ6U9E1QSYaEBKKf9y6eYDgv/view?resourcekey%3D0-3I4BSEVo58qavsjVwF1pPQ&sa=D&source=docs&ust=1652738916206829&usg=AOvVaw1pQVmP4fBvjpDekksRGEBZ)
+[Link](https://www.google.com/url?q=https://drive.google.com/file/d/1UyCuo_n9XQ6U9E1QSYaEBKKf9y6eYDgv/view?resourcekey%3D0-3I4BSEVo58qavsjVwF1pPQ&sa=D&source=docs&ust=1652738916206829&usg=AOvVaw1pQVmP4fBvjpDekksRGEBZ)
 
 
 ## Run
 
-- Take this [spreadsheet] (https://docs.google.com/spreadsheets/d/17vN8ZRezhtQU11XKhOuexPkOBCLPiTO895oDJvhVblo/copy). 
+- Take this [spreadsheet](https://docs.google.com/spreadsheets/d/17vN8ZRezhtQU11XKhOuexPkOBCLPiTO895oDJvhVblo/copy). 
 - Copy its url for later.
 - Rename it.
 - Fill the thresholds in the “input” tab.
 - Use the “simulator” tab to calculate the desired date ranges (optional).
 
-[spreadsheet] (src/2022-05-17_00-12_1.png)
+[spreadsheet](src/2022-05-17_00-12_1.png)
 
 - Create a new script in G-Ads.
 - Name it.
@@ -51,7 +51,7 @@ The solutions includes the following components:
 - Replace it with the code that appears in “Extensions >> Apps script”.
 - Put the sheet’s url.
 
-[spreadsheet] (src/2022-05-17_00-13.png)
+[spreadsheet](src/2022-05-17_00-13.png)
 
 
 - Run the script once (“preview”).
@@ -60,7 +60,7 @@ The solutions includes the following components:
 - Results appear in the spreadsheet on the “Results” tab.
 
 
-[spreadsheet] (src/2022-05-17_00-13_1.png)
+[spreadsheet](src/2022-05-17_00-13_1.png)
 
 
 </br>

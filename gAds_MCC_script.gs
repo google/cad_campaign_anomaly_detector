@@ -1,20 +1,4 @@
-/*
-Copyright 2022 Google LLC
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    https://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-
-Copyright 2022 Google LLC. This solution, including any related sample code or data, is made available on an “as is,” “as available,” and “with all faults” basis, solely for illustrative purposes, and without warranty or representation of any kind. This solution is experimental, unsupported and provided solely for your convenience. Your use of it is subject to your agreements with Google, as applicable, and may constitute a beta feature as defined under those agreements.  To the extent that you make any data available to Google in connection with your use of the solution, you represent and warrant that you have all necessary and appropriate rights, consents and permissions to permit Google to use and process that data.  By using any portion of this solution, you acknowledge, assume and accept all risks, known and unknown, associated with its usage, including with respect to your deployment of any portion of this solution in your systems, or usage in connection with your business, if at all.*
-
+/**
  * @name Campaign Anomaly Detector
  *
  * @fileoverview The Campaign Anomaly Detector alerts the advertiser whenever
@@ -24,17 +8,14 @@ Copyright 2022 Google LLC. This solution, including any related sample code or d
  * for more details.
  *
  * @author: eladb@google.com
- * Date: 2022-4-20
+ * Date: 2022-5-26
 **/
 
 
 //USER_TO_DO: Fill in url
-var SPREADSHEET_URL = '--------';
+var SPREADSHEET_URL = '----';
 var spreadsheet;
 var resultsSheet;
-var gAdsAndManualHeaders;
-var accountIdsAlreadyFullyScanned = [];
-
 var CONST = {
 
   FIRST_DATA_ROW: 7,
@@ -81,10 +62,10 @@ var CONST = {
   COLOR_HIGH: "color_high",
   COLOR_LOW: "color_low",
 
-  NEED_TO_DELETE: "need_to_delete_debug",
+  DEVIDE_COST_BY: 10000000, //10,000,000
+  DEVIDE_IMPRESSIONS_BY: 10,
+  DEVIDE_CLICKS_BY: 10
 
-//USER_TO_DO: Adjust prices division to your UI/email needs.
-  DEVIDE_COST_BY: 1000000 //1,000,000
 };
 
 var STATS = {
@@ -114,11 +95,8 @@ var STATS = {
     { 'Column': 34, 'GAQL_name': 'average_cpc', 'Named_range': 'average_cpc', 'Email_text': 'CPC' },
   'roi':
     { 'Column': 38, 'GAQL_name': 'roi', 'Named_range': 'roi', 'Email_text': 'ROI' },
-
-  'cost_per_all_conversions':
-    { 'GAQL_name': 'metrics.cost_per_all_conversions' },
-  'conversions_value':
-    { 'GAQL_name': 'metrics.conversions_value' }
+  'all_conversions_value':
+    { 'GAQL_name': 'metrics.all_conversions_value' }
 };
 
 // CPC - average_cpc
@@ -153,38 +131,25 @@ function main() {
     var newStartingRow = Math.max(CONST.FIRST_DATA_ROW, resultsSheet.getLastRow() + 1);
     alertTextForMcc.push(generateAlertForSingleAccount(currentAccount, spreadsheet, newStartingRow));
   }
-  deleteRowsIfNoHighlights();
-  sendEmail(mccManager.mccAccount(), alertTextForMcc, spreadsheet);
-}
 
-function deleteRowsIfNoHighlights() {
-  var firstDataColumn = CONST.FIRST_DATA_COLUMN;
-  var firstDataRow = CONST.FIRST_DATA_ROW;
-  var dataRange = resultsSheet.getRange(firstDataRow, firstDataColumn, Math.max(1, resultsSheet.getLastRow() - firstDataRow + 2), 1);
-  var values = dataRange.getDisplayValues();
-  for (var i = values.length - 1; i > -1; i--) {
-    if (values[i][0] == CONST.NEED_TO_DELETE) {
-      resultsSheet.deleteRows(firstDataRow + i, 1);
-      Logger.log("Deleted a NEED_TO_DELETE row");
-    }
-  }
+  sendEmail(mccManager.mccAccount(), alertTextForMcc, spreadsheet);
 }
 
 function getExistingAccountLabels(labels, account) {
   var accountLabelSelector = account.labels();
-  var relevantLabels1 = [];
+  var relevantLabels = [];
   for (i in labels) {
     var condition = "Name CONTAINS '" + labels[i] + "'";
     var iterator = accountLabelSelector.withCondition(condition).get();
     if (iterator.hasNext()) {
       iterator.next();
-      relevantLabels1.push(labels[i]);
+      relevantLabels.push(labels[i]);
     }
   }
-  return relevantLabels1;
+  return relevantLabels;
 }
 
-function rowsToCmapaignDict(campaigns, response, value) {
+function rowsToCampaignDict(campaigns, response, value) {
   rows = response.rows();
   while (rows.hasNext()) {
     var row = rows.next();
@@ -225,7 +190,6 @@ function generateAlertForSingleAccount(currentAccount, spreadsheet, currentRowTo
         return;
       }
       Logger.log("Full scan for account " + currentAccountId);
-      accountIdsAlreadyFullyScanned.push[currentAccountId];
       var currentFullAccount = SheetUtil.getCurrentQueryForFullAccount();
       var currentFullAccount = AdsApp.report(currentFullAccount, REPORTING_OPTIONS);
       var pastFullAccount = AdsApp.report(SheetUtil.getPastQueryForFullAccount(), REPORTING_OPTIONS);
@@ -243,21 +207,26 @@ function generateAlertForSingleAccount(currentAccount, spreadsheet, currentRowTo
     var campaignLabels = SheetUtil.getCampaignLabels();
     var excludedClause = excludedCampaignIds == "" ? "" : "AND campaign.id NOT IN (" + excludedCampaignIds + ")";
     if (campaignIds.length > 0) {
-      if (accountIdsAlreadyFullyScanned.includes(currentAccount) && campaignIds.toUpperCase().includes("ALL_ENABLED_FOR_SELECTED_ACCOUNTS")) {
-        campaignIds = getAllcampaignForAccount(currentAccount);
+      if (campaignIds.toUpperCase().includes("ALL_ENABLED_FOR_ACCOUNT_")) {
+        var forAccountId = campaignIds.toUpperCase().replace("ALL_ENABLED_FOR_ACCOUNT_", "");
+        if (currentAccount.getCustomerId() == forAccountId) {
+          var query = "SELECT campaign.id, campaign.name FROM campaign";
+          Logger.log("campaigns for current account query =" + query);
+          campaignDictForCurrentAccount = rowsToCampaignDict(campaignDictForCurrentAccount, AdsApp.report(query, REPORTING_OPTIONS), "campaign.id");
+        }
+      } else if (campaignIds != "") {
+        var query = "SELECT campaign.id, campaign.name FROM campaign WHERE campaign.id IN (" + campaignIds + ") " + excludedClause;
+        Logger.log("campaignIds query =" + query);
+        campaignDictForCurrentAccount = rowsToCampaignDict(campaignDictForCurrentAccount, AdsApp.report(query, REPORTING_OPTIONS), "campaign.id");
       }
-      var query = "SELECT campaign.id, campaign.name FROM campaign WHERE campaign.id IN (" + campaignIds + ") " + excludedClause;
-      Logger.log("campaignIds query =" + query);
-      campaignDictForCurrentAccount = rowsToCmapaignDict(campaignDictForCurrentAccount, AdsApp.report(query, REPORTING_OPTIONS), "campaign.id");
     }
     if (campaignLabels.length > 0) {
       var query = "SELECT campaign.id, campaign.name, label.name FROM campaign_label WHERE label.name IN (" + campaignLabels + ") " + excludedClause;
       Logger.log("campaignLabels query =" + query);
-      campaignDictForCurrentAccount = rowsToCmapaignDict(campaignDictForCurrentAccount, AdsApp.report(query, REPORTING_OPTIONS), "label.name");
+      campaignDictForCurrentAccount = rowsToCampaignDict(campaignDictForCurrentAccount, AdsApp.report(query, REPORTING_OPTIONS), "label.name");
     }
     return campaignDictForCurrentAccount;
   }
-
 
   function _populateStatDictsWithCampaignsData(campaignDictForCurrentAccount) {
     var campaignIdsForCurrentAccount = Object.keys(campaignDictForCurrentAccount);
@@ -276,7 +245,7 @@ function generateAlertForSingleAccount(currentAccount, spreadsheet, currentRowTo
   var campaignDictForCurrentAccount = _getCampaignDictForCurrentAccount(currentAccount);
   _populateStatDictsWithCampaignsData(campaignDictForCurrentAccount);
 
-  function _writeFromDictsToSheet() {
+  function _updateStatDicts(currentStatsForCurrentAccount, pastStatsForCurrentAccount) {
     var nameParts = accountOrCampaignId.split(':');
     var campaignId = nameParts.length > 2 ? nameParts[2].toString().trim() : "";
     var campaignName = nameParts.length > 3 ? nameParts[3].toString().trim() : "";
@@ -295,102 +264,104 @@ function generateAlertForSingleAccount(currentAccount, spreadsheet, currentRowTo
         campaignId,
         campaignName];
 
-    function setAvgToBuldingBlockStats(name, currentStats, pastStats) {
-      currentStats[name] /= SheetUtil.currentTimeWindowUnits();
-      pastStats[name] /= SheetUtil.pastTimeWindowUnits();
-      current = currentStats[name];
-      past = pastStats[name];
+    function setAvgToBuldingBlockStats(statName, currentStats, pastStats) {
+      setAvgToBuldingBlockStatsDividedBy(statName, currentStats, pastStats, 1);
     }
 
-    setAvgToBuldingBlockStats(STATS.impressions.GAQL_name, currentStats, pastStats);
+    function setAvgToBuldingBlockStatsDividedBy(statName, currentStats, pastStats, divideBy) {
+      currentStats[statName] /= (SheetUtil.currentTimeWindowUnits() * divideBy);
+      pastStats[statName] /= (SheetUtil.pastTimeWindowUnits() * divideBy);
+      current = currentStats[statName];
+      past = pastStats[statName];
+    }
+
+    setAvgToBuldingBlockStatsDividedBy(STATS.impressions.GAQL_name, currentStatsForCurrentAccount, pastStatsForCurrentAccount, CONST.DEVIDE_IMPRESSIONS_BY);
     rowData = rowData.concat([formattingFuncZeroDigits(current), formattingFuncZeroDigits(past), formattingFuncZeroDigits(current - past), formattingFuncTwoDigits(current / past)]);
 
-    setAvgToBuldingBlockStats(STATS.clicks.GAQL_name, currentStats, pastStats);
+    setAvgToBuldingBlockStatsDividedBy(STATS.clicks.GAQL_name, currentStatsForCurrentAccount, pastStatsForCurrentAccount, CONST.DEVIDE_CLICKS_BY);
     rowData = rowData.concat([formattingFuncZeroDigits(current), formattingFuncZeroDigits(past), formattingFuncZeroDigits(current - past), formattingFuncTwoDigits(current / past)]);
 
-    setAvgToBuldingBlockStats(STATS.conversions.GAQL_name, currentStats, pastStats);
+    setAvgToBuldingBlockStats(STATS.conversions.GAQL_name, currentStatsForCurrentAccount, pastStatsForCurrentAccount);
     rowData = rowData.concat([formattingFuncTwoDigits(current), formattingFuncTwoDigits(past), formattingFuncTwoDigits(current - past), formattingFuncTwoDigits(current / past)]);
 
-    setAvgToBuldingBlockStats(STATS.cost_micros.GAQL_name, currentStats, pastStats);
-    current /= CONST.DEVIDE_COST_BY;
-    past /= CONST.DEVIDE_COST_BY;
+    setAvgToBuldingBlockStatsDividedBy(STATS.cost_micros.GAQL_name, currentStatsForCurrentAccount, pastStatsForCurrentAccount, CONST.DEVIDE_COST_BY);
     rowData = rowData.concat([formattingFuncTwoDigits(current), formattingFuncTwoDigits(past), formattingFuncTwoDigits(current - past), formattingFuncTwoDigits(current / past)]);
 
-    setAvgToBuldingBlockStats(STATS.conversions_value.GAQL_name, currentStats, pastStats);
-    setAvgToBuldingBlockStats(STATS.cost_per_all_conversions.GAQL_name, currentStats, pastStats);
+    setAvgToBuldingBlockStats(STATS.all_conversions_value.GAQL_name, currentStatsForCurrentAccount, pastStatsForCurrentAccount);
 
-    function _setManualRatioStas(resultStat, numerator, denominator, currentStats, pastStats) {
-      _manualCalc(resultStat, numerator, denominator, currentStats, pastStats, 1);
+    function _setManuallyCalculatedRatioStas(statName, numerator, denominator, currentStats, pastStats) {
+      _manualCalc(statName, numerator, denominator, currentStats, pastStats, 1);
     }
-    function _setManualPriceStats(resultStat, numerator, denominator, currentStats, pastStats) {
-      _manualCalc(resultStat, numerator, denominator, currentStats, pastStats, CONST.DEVIDE_COST_BY);
+    function _setManualPriceStats(statName, numerator, denominator, currentStats, pastStats) {
+      _manualCalc(statName, numerator, denominator, currentStats, pastStats, 1);
     }
-    function _manualCalc(resultStat, numerator, denominator, currentStats, pastStats, devideBy) {
-      currentStats[resultStat] = currentStats[numerator] / currentStats[denominator] / devideBy;
-      pastStats[resultStat] = pastStats[numerator] / pastStats[denominator] / devideBy;
-      atLeastOneMetricIsAboveMin = atLeastOneMetricIsAboveMin || isAboveMinimalDelta(resultStat, currentStats[resultStat] - pastStats[resultStat]);
-      current = currentStats[resultStat];
-      past = pastStats[resultStat];
+    function _manualCalc(statName, numerator, denominator, currentStats, pastStats, devideBy) {
+      var denomValue = currentStats[denominator];
+      currentStats[statName] = denomValue == 0 ? -1 : currentStats[numerator] / currentStats[denominator] / devideBy;
+      pastStats[statName] = denomValue == 0 ? -1 : pastStats[numerator] / pastStats[denominator] / devideBy;
+      atLeastOneMetricIsAboveMin = atLeastOneMetricIsAboveMin || isAboveMinimalDelta(statName, currentStats[statName] - pastStats[statName]);
+      current = currentStats[statName];
+      past = pastStats[statName];
     }
 
     //CPA = sum(cost)/sum(conv) daily avg
-    _setManualPriceStats(STATS.cost_per_conversion.Named_range, STATS.cost_micros.GAQL_name, STATS.conversions.GAQL_name, currentStats, pastStats);
+    _setManualPriceStats(STATS.cost_per_conversion.Named_range, STATS.cost_micros.GAQL_name, STATS.conversions.GAQL_name, currentStatsForCurrentAccount, pastStatsForCurrentAccount);
     rowData = rowData.concat([current, past, (current - past), formattingFuncTwoDigits(current / past)]);
 
     //CTR = sum(clicks)/sum(imps)  daily avg
-    _setManualRatioStas(STATS.ctr.Named_range, STATS.clicks.GAQL_name, STATS.impressions.GAQL_name, currentStats, pastStats);
+    _setManuallyCalculatedRatioStas(STATS.ctr.Named_range, STATS.clicks.GAQL_name, STATS.impressions.GAQL_name, currentStatsForCurrentAccount, pastStatsForCurrentAccount);
     rowData = rowData.concat([formattingFuncThreeDigits(current), formattingFuncThreeDigits(past), formattingFuncThreeDigits(current - past), formattingFuncTwoDigits(current / past)]);
 
     //CVR = sum(conv)/sum(clicks) daily avg
-    _setManualRatioStas(STATS.conversions_from_interactions_rate.Named_range, STATS.conversions.GAQL_name, STATS.clicks.GAQL_name, currentStats, pastStats);
+    _setManuallyCalculatedRatioStas(STATS.conversions_from_interactions_rate.Named_range, STATS.conversions.GAQL_name, STATS.clicks.GAQL_name, currentStatsForCurrentAccount, pastStatsForCurrentAccount);
     rowData = rowData.concat([formattingFuncThreeDigits(current), formattingFuncThreeDigits(past), formattingFuncThreeDigits(current - past), formattingFuncTwoDigits(current / past)]);
 
     //CPC = sum(cost)/sum(clicks) daily avg
-    _setManualPriceStats(STATS.average_cpc.Named_range, STATS.cost_micros.GAQL_name, STATS.clicks.GAQL_name, currentStats, pastStats);
+    _setManualPriceStats(STATS.average_cpc.Named_range, STATS.cost_micros.GAQL_name, STATS.clicks.GAQL_name, currentStatsForCurrentAccount, pastStatsForCurrentAccount);
     rowData = rowData.concat([formattingFuncTwoDigits(current), formattingFuncTwoDigits(past), formattingFuncTwoDigits(current - past), formattingFuncTwoDigits(current / past)]);
 
-    //ROI = conversions_value / cost_per_all_conversions
-    _setManualRatioStas(STATS.roi.Named_range, STATS.conversions_value.GAQL_name, STATS.cost_per_all_conversions.GAQL_name, currentStats, pastStats);
+    //ROI = conversion value / Cost 
+    _setManuallyCalculatedRatioStas(STATS.roi.Named_range, STATS.all_conversions_value.GAQL_name, STATS.cost_micros.GAQL_name, currentStatsForCurrentAccount, pastStatsForCurrentAccount);
     rowData = rowData.concat([formattingFuncTwoDigits(current), formattingFuncTwoDigits(past), formattingFuncTwoDigits(current - past), formattingFuncTwoDigits(current / past)]);
-    resultsSheet.getRange(currentRowToWrite, CONST.FIRST_DATA_COLUMN, 1, (5 + 4 * 9)).setValues([rowData]);
 
-    return atLeastOneMetricIsAboveMin;
+    return atLeastOneMetricIsAboveMin ? rowData : [];
   }
 
   //Read all values from dict
   var accountOrCampaignIdsForCurrentCid = Object.keys(currentStatsDict);
   for (i in accountOrCampaignIdsForCurrentCid) {
     var accountOrCampaignId = accountOrCampaignIdsForCurrentCid[i];
-    var currentStats = currentStatsDict[accountOrCampaignId];
-    var pastStats = pastStatsDict[accountOrCampaignId];
 
     //Entity doesn't exist in the present
-    if (!currentStats) {
+    if (!currentStatsDict[accountOrCampaignId]) {
       Logger.log("ERROR: currentStats are not defined for accountIdOrCampaignId = " + accountOrCampaignId);
-      currentStats = new ZeroMetrics().zeroLine;
+      currentStatsDict[accountOrCampaignId] = new ZeroMetrics().zeroLine;
     }
     //Entity didn't exist in the past
-    if (!pastStats) {
+    if (!pastStatsDict[accountOrCampaignId]) {
       Logger.log("ERROR: pastStatsDict are not defined for accountIdOrCampaignId = " + accountOrCampaignId);
-      pastStats = new ZeroMetrics().zeroLine;
+      pastStatsDict[accountOrCampaignId] = new ZeroMetrics().zeroLine;
     }
-
-    var atLeastOneMetricIsAboveMin = _writeFromDictsToSheet();
-    /**
-     * Prepare email for scanned accounts
-     */
-    if (atLeastOneMetricIsAboveMin) {
-      var alertTextForCampaign = generateEmailTextForCampiagn(accountOrCampaignId, currentRowToWrite, currentStats, pastStats);
-      var isHighlighted = alertTextForCampaign.includes("<td>");
-      if (isHighlighted) {
-        currentRowToWrite++;
-        alertTextForAccount.push(alertTextForCampaign);
-        continue;
+    var isLastRowForCurrentAccount = (accountOrCampaignIdsForCurrentCid.length - 1 == i);
+    var currentStatsForCurrentAccount = currentStatsDict[accountOrCampaignId];
+    var pastStatsForCurrentAccount = pastStatsDict[accountOrCampaignId];
+    var rowData = _updateStatDicts(currentStatsForCurrentAccount, pastStatsForCurrentAccount,);
+    if (rowData.length == 0) {     //All noise cancelling thresholds failed.
+    Logger.log("i "+i);
+      continue;
+    }
+    resultsSheet.getRange(currentRowToWrite, CONST.FIRST_DATA_COLUMN, 1, (5 + 4 * 9)).setValues([rowData]);
+    //Prepare email for scanned accounts
+    var alertTextForCampaign = generateEmailTextForCampiagn(accountOrCampaignId, currentRowToWrite, currentStatsForCurrentAccount, pastStatsForCurrentAccount);
+    var isHighlighted = alertTextForCampaign.includes("<td>");
+    Logger.log("i "+i);
+    if (isHighlighted) {
+      alertTextForAccount.push(alertTextForCampaign);
+          currentRowToWrite++;
+    } else {
+        resultsSheet.deleteRow(currentRowToWrite);
       }
     }
-    //A mark last row of the whole table (which isn't being run over).
-    resultsSheet.getRange(currentRowToWrite, 1, 1, 1).setValue(CONST.NEED_TO_DELETE);
-  }
   return alertTextForAccount;
 }
 
@@ -426,9 +397,8 @@ function highlightThresholdsInTrixAndEmail(statNames, thresholdType, currentStat
   var currentAvgValue = currentStats[statsName];
   var thresholdValue = (pastAvgValue) * thresholds[currentThresholdName];
   var numericDelta = currentAvgValue - pastAvgValue;
-  var percentageDelta = ((currentAvgValue / pastAvgValue) - 1) * 100;
+  var percentageDelta = (currentAvgValue / pastAvgValue) * 100;
 
-  var thresholdValueStr = thresholdValue;
   var currentValueStr = currentAvgValue;
   var pastAvgValueStr = pastAvgValue;
   var numericDeltaStr = numericDelta;
@@ -436,51 +406,49 @@ function highlightThresholdsInTrixAndEmail(statNames, thresholdType, currentStat
 
   if (currentThresholdName.includes("impressions") || currentThresholdName.includes("clicks")
     || currentThresholdName.includes("conversions") || currentThresholdName.includes("roi")) {
-    thresholdValueStr = formatNums(thresholdValue, 2);
     currentValueStr = Math.round(currentAvgValue);
     pastAvgValueStr = Math.round(pastAvgValue);
     numericDeltaStr = Math.round(numericDelta);
     percentageDeltaStr = formatNums(percentageDelta, 2) + "%";
   }
   else if (currentThresholdName.includes("cost_micros")) {
-    thresholdValueStr = currencyCode + formatNums(thresholdValue / CONST.DEVIDE_COST_BY, 2);
-    currentValueStr = currencyCode + Math.round(currentAvgValue / CONST.DEVIDE_COST_BY);
-    pastAvgValueStr = currencyCode + Math.round(pastAvgValue / CONST.DEVIDE_COST_BY);
-    numericDeltaStr = currencyCode + Math.round(numericDelta / CONST.DEVIDE_COST_BY);
+    currentValueStr = currencyCode + Math.round(currentAvgValue);
+    pastAvgValueStr = currencyCode + Math.round(pastAvgValue);
+    numericDeltaStr = currencyCode + Math.round(numericDelta);
     percentageDeltaStr = formatNums(percentageDelta, 2) + "%";
   }
   //daily avg
   else if (currentThresholdName.includes("cost_per_conversion")) {
-    thresholdValueStr = currencyCode + formatNums(thresholdValue / CONST.DEVIDE_COST_BY, 2);
-    currentValueStr = currencyCode + formatNums(currentAvgValue / CONST.DEVIDE_COST_BY, 2);
-    pastAvgValueStr = currencyCode + formatNums(pastAvgValue / CONST.DEVIDE_COST_BY, 2);
-    numericDeltaStr = currencyCode + formatNums(numericDelta / CONST.DEVIDE_COST_BY, 2);
+    currentValueStr = currencyCode + formatNums(currentAvgValue, 2);
+    pastAvgValueStr = currencyCode + formatNums(pastAvgValue, 2);
+    numericDeltaStr = currencyCode + formatNums(numericDelta, 2);
     percentageDeltaStr = formatNums(percentageDelta, 2) + "%";
   }
   //daily avg
   else if (currentThresholdName.includes("ctr") || currentThresholdName.includes("conversions_from_interactions_rate")) {
-    thresholdValueStr = formatNums(thresholdValue / CONST.DEVIDE_COST_BY, 3);
-    currentValueStr = formatNums(currentAvgValue / CONST.DEVIDE_COST_BY, 3);
-    pastAvgValueStr = formatNums(pastAvgValue / CONST.DEVIDE_COST_BY, 3);
-    numericDeltaStr = formatNums(numericDelta / CONST.DEVIDE_COST_BY, 3);
+    currentValueStr = formatNums(currentAvgValue, 3);
+    pastAvgValueStr = formatNums(pastAvgValue, 3);
+    numericDeltaStr = formatNums(numericDelta, 3);
     percentageDeltaStr = formatNums(percentageDelta, 3) + "%";
   }
   //daily avg
   else if (currentThresholdName.includes("average_cpc")) {
-    thresholdValueStr = currencyCode + formatNums(thresholdValue / CONST.DEVIDE_COST_BY, 2);
-    currentValueStr = currencyCode + formatNums(currentAvgValue / CONST.DEVIDE_COST_BY, 1);
-    pastAvgValueStr = currencyCode + formatNums(pastAvgValue / CONST.DEVIDE_COST_BY, 1);
-    numericDeltaStr = currencyCode + formatNums(numericDelta / CONST.DEVIDE_COST_BY, 1);
+    currentValueStr = currencyCode + formatNums(currentAvgValue, 1);
+    pastAvgValueStr = currencyCode + formatNums(pastAvgValue, 1);
+    numericDeltaStr = currencyCode + formatNums(numericDelta, 1);
     percentageDeltaStr = formatNums(percentageDelta, 2) + "%";
   }
 
-  thresholdValueStr = addNumberCommas(thresholdValueStr);
   currentValueStr = addNumberCommas(currentValueStr);
   pastAvgValueStr = addNumberCommas(pastAvgValueStr);
+  numericDeltaStr = addNumberCommas(numericDeltaStr);
 
   var isHighlighted = false;
   //Email text
-  if (thresholdType.includes("high") && currentAvgValue >= thresholdValue) {
+  if (currentAvgValue == -1 || thresholdValue == -1) {
+    // nothing
+  }
+  else if (thresholdType.includes("high") && currentAvgValue >= thresholdValue) {
     isHighlighted = true;
     colorResultsCell(campaignCellInTrix, spreadsheet.getRangeByName(CONST.COLOR_HIGH).getValue());
   }
@@ -642,7 +610,7 @@ var SheetUtil = (function () {
     var pastRangeStartDate = getDateStringForMinusDays(pastStartGoBack + pastTimeWindowDays - 1);
 
 
-    var gAdsQueryFields = 'metrics.clicks, metrics.impressions, metrics.conversions, metrics.cost_micros, metrics.conversions_value, metrics.cost_per_all_conversions';
+    var gAdsQueryFields = 'metrics.clicks, metrics.impressions, metrics.conversions, metrics.cost_micros, metrics.all_conversions_value';
     gAdsAndManualHeaders = gAdsQueryFields + ', ctr, conversions_from_interactions_rate, average_cpc, cost_per_conversion';
     gAdsAndManualHeaders = gAdsAndManualHeaders.replace(/\s/g, '').split(',');
 
@@ -804,8 +772,7 @@ function accumulateToReportRows(accForEntity, row) {
   accForEntity[STATS.impressions.GAQL_name] += toFloat(row[STATS.impressions.GAQL_name]);
   accForEntity[STATS.conversions.GAQL_name] += toFloat(row[STATS.conversions.GAQL_name]);
   accForEntity[STATS.cost_micros.GAQL_name] += toFloat(row[STATS.cost_micros.GAQL_name]);
-  accForEntity[STATS.cost_per_all_conversions.GAQL_name] += toFloat(row[STATS.cost_per_all_conversions.GAQL_name]);
-  accForEntity[STATS.conversions_value.GAQL_name] += toFloat(row[STATS.conversions_value.GAQL_name]);
+  accForEntity[STATS.all_conversions_value.GAQL_name] += toFloat(row[STATS.all_conversions_value.GAQL_name]);
   return accForEntity;
 }
 
@@ -912,4 +879,4 @@ var mccManager = function () {
     getCurrentAccountName: getCurrentAccountName,
     getAccountsForIds: getAccountsForIds
   };
-};
+};/*
