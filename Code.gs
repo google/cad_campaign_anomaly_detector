@@ -263,7 +263,7 @@ class CadSingleResult {
       let currentAvgValue = this.allMetricsComparisons[metricType].current;
       let pastAvgValue = this.allMetricsComparisons[metricType].past;
       let numericDelta = this.allMetricsComparisons[metricType].changeAbs;
-      let percentageDelta = this.allMetricsComparisons[metricType].changePercent * 100;
+      let percentageDelta = this.allMetricsComparisons[metricType].changePercent * 100 - 100;
       let metricAlertDirection =
         this.allMetricsComparisons[metricType].metricAlertDirection;
 
