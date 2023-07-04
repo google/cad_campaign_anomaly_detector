@@ -2,6 +2,7 @@
 const CONFIG = {
   /**
    * URL of the copy from the default spreadsheet template.
+   * https://docs.google.com/spreadsheets/d/1ki-fYL3CjKsU-ems174M42NJ4TMfaWo3SPw-oZYuOvs/copy
    @const {string}
    */
   spreadsheet_url: '-----',
@@ -22,6 +23,6 @@ const CONFIG = {
   reporting_options: {
       // Comment out the following line to default to the latest reporting
       // version.
-      'apiVersion': 'v12'
+      'apiVersion': 'v14'
   }
 };

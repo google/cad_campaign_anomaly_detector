@@ -1,5 +1,6 @@
-/** ============= Cad Result ==================== */
+const weekdays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
+/** ============= Cad Result ==================== */
 /**
  * A metric's performance
  *
@@ -15,7 +16,6 @@ class MetricResult {
     this.changePercent = 0;
   }
 }
-
 
 /**
  * Metric Types
@@ -38,30 +38,6 @@ const MetricTypes = {
     isCumulative: true,
     isWriteToSheet: true
   },
-  cost_micros: {
-    email: 'Cost',
-    isMonitored: true,
-    isMicro: true,
-    isFromGoogleAds: true,
-    isCumulative: true,
-    isWriteToSheet: true
-  },
-
-  ctr: {
-    email: 'CTR',
-    isMonitored: true,
-    isFromGoogleAds: true,
-    isWriteToSheet: true,
-    isPercent: true
-  },
-  average_cpc: {
-    email: 'CPC',
-    isMonitored: true,
-    isMicro: true,
-    isFromGoogleAds: true,
-    isWriteToSheet: true
-  },
-
   all_conversions: {
     email: 'All Conversions',
     isMonitored: true,
@@ -78,7 +54,14 @@ const MetricTypes = {
     isCumulative: true,
     isWriteToSheet: true
   },
-
+  cost_micros: {
+    email: 'Cost',
+    isMonitored: true,
+    isMicro: true,
+    isFromGoogleAds: true,
+    isCumulative: true,
+    isWriteToSheet: true
+  },
   cost_per_all_conversions: {
     email: 'CPA all',
     isMonitored: true,
@@ -95,7 +78,13 @@ const MetricTypes = {
     isCumulative: true,
     isWriteToSheet: true
   },
-
+  ctr: {
+    email: 'CTR',
+    isMonitored: true,
+    isFromGoogleAds: true,
+    isWriteToSheet: true,
+    isPercent: true
+  },
   all_conversions_from_interactions_rate: {
     email: 'CVR all',
     isMonitored: true,
@@ -109,10 +98,41 @@ const MetricTypes = {
     isWriteToSheet: true
   },
 
-  all_conversions_value:
-    { email: 'All conversions value', isFromGoogleAds: true },
+  average_cpc: {
+    email: 'CPC',
+    isMonitored: true,
+    isMicro: true,
+    isFromGoogleAds: true,
+    isWriteToSheet: true
+  },
 
-  conversions_value: { email: 'Conversions value', isFromGoogleAds: true },
+  roas_all: {
+    email: 'ROAS all',
+    isMonitored: true,
+    shouldBeRounded: true,
+    isWriteToSheet: true
+  },
+  roas: {
+    email: 'ROAS',
+    isMonitored: true,
+    shouldBeRounded: true,
+    isWriteToSheet: true
+  },
+
+  all_conversions_value:
+  {
+    email: 'All conversions value',
+    isMonitored: true,
+    isFromGoogleAds: true,
+    isWriteToSheet: true
+  },
+
+  conversions_value: {
+    email: 'Conversions value',
+    isMonitored: true,
+    isFromGoogleAds: true,
+    isWriteToSheet: true
+  },
 
 
   search_click_share: {
@@ -122,7 +142,7 @@ const MetricTypes = {
     isWriteToSheet: true
   },
   average_cpm: {
-    email: 'Avg CVM',
+    email: 'Avg CPM',
     isMicro: true,
     isMonitored: true,
     isFromGoogleAds: true,
@@ -138,22 +158,9 @@ const MetricTypes = {
   },
 
   video_view_rate: {
-    email: 'View rate',
+    email: 'Video View Rate',
     isMonitored: true,
     isFromGoogleAds: true,
-    isWriteToSheet: true
-  },
-
-  roas_all: {
-    email: 'ROAS all',
-    isMonitored: true,
-    shouldBeRounded: true,
-    isWriteToSheet: true
-  },
-  roas: {
-    email: 'ROAS',
-    isMonitored: true,
-    shouldBeRounded: true,
     isWriteToSheet: true
   },
 };
@@ -176,9 +183,16 @@ class CadSingleResult {
   }
 
 
+  fillZerosForMissingId(statMapForId, gAdsMetric) {
+    if (!statMapForId) {
+      statMapForId = {};
+      statMapForId[gAdsMetric] = 0;
+    }
+    return statMapForId;
+  }
 
   /**
-   * Returns a string for an email format
+   * Fills the metrics map
    *
    * @param {string} id Entity id
    * @param {!Object} pastStats past stats map
@@ -199,16 +213,20 @@ class CadSingleResult {
       this.allMetricsComparisons[gAdsMetric] = {};
       let comparisonResult = this.allMetricsComparisons[gAdsMetric];
 
+      currentStats[id] = this.fillZerosForMissingId(currentStats[id], gAdsMetric);
+      pastStats[id] = this.fillZerosForMissingId(pastStats[id], gAdsMetric);
+
+
       if (MetricTypes[metric].isMicro) {
         currentStats[id][gAdsMetric] /= 1e6;
         pastStats[id][gAdsMetric] /= 1e6;
       }
       if (MetricTypes[metric].isCumulative) {
         comparisonResult.past = (pastStats[id]) ? pastStats[id][gAdsMetric] /
-          cadConfig.lookbackInDays.past_range_period :
+          cadConfig.dividePastBy :
           0;
         comparisonResult.current = currentStats[id][gAdsMetric] /
-          cadConfig.lookbackInDays.current_range_period;
+          cadConfig.divideCurrentBy;
 
       } else if (gAdsMetric.includes('roas_all')) {
         comparisonResult.past = (pastStats[id]) ?
@@ -228,6 +246,15 @@ class CadSingleResult {
           currentStats[id]['metrics.cost_micros'];
       }
 
+      //after done for roas calculation.
+      else if (gAdsMetric.includes('conversions_value')) {
+        comparisonResult.past = (pastStats[id]) ? pastStats[id][gAdsMetric] /
+          cadConfig.dividePastBy :
+          0;
+        comparisonResult.current = currentStats[id][gAdsMetric] /
+          cadConfig.divideCurrentBy;
+
+      }
       else {
         comparisonResult.past = (pastStats[id]) ? pastStats[id][gAdsMetric] : 0;
         comparisonResult.current =
@@ -237,7 +264,6 @@ class CadSingleResult {
         comparisonResult.past *= 100;
         comparisonResult.current *= 100;
       }
-
 
       comparisonResult.changeAbs = comparisonResult.current - comparisonResult.past;
       comparisonResult.changePercent = (comparisonResult.current / comparisonResult.past) * 100 - 100;
@@ -254,16 +280,6 @@ class CadSingleResult {
           comparisonResult.metricAlertDirection = 'down';
         }
       }
-
-      if (CONFIG.is_debug_log) {
-        Logger.log(`=====comparisonResult= ` + JSON.stringify(comparisonResult));
-        Logger.log(`=====this.metricComparisonResults= ` + JSON.stringify(this.allMetricsComparisons));
-        Logger.log(`ignoreAbs= ` + JSON.stringify(ignoreAbs));
-        Logger.log(
-          `comparisonResult.metricAlertDirection= ` +
-          JSON.stringify(comparisonResult.metricAlertDirection));
-      }
-
       this.isTriggerAlert = this.isTriggerAlert ||
         (comparisonResult.metricAlertDirection != undefined);
     }
@@ -283,13 +299,11 @@ class CadSingleResult {
       `<br>Anomalies for: ${this.account.id} ${this.account.name} ${campaignHeader}
      <br><table style="width:50%;border:1px solid black;"><tr style="border:1px solid black;"><th style="text-align:left;border:1px solid black;">Metric</th><th style="text-align:left;border:1px solid black;">Current</th><th style="text-align:left;border:1px solid black;">Past</th> <th style="text-align:left;border:1px solid black;">Δ</th> <th style="text-align:left;border:1px solid black;">Δ%</th></tr>`
     ];
-    MetricTypes
 
     for (let metricType in this.allMetricsComparisons) {
       let metricType_name = metricType.split(".")[1];
       if (!MetricTypes[metricType_name].isWriteToSheet) continue;
       if (!this.allMetricsComparisons[metricType].metricAlertDirection) continue;
-
 
       let currentAvgValue = this.allMetricsComparisons[metricType].current;
       let pastAvgValue = this.allMetricsComparisons[metricType].past;
@@ -305,25 +319,25 @@ class CadSingleResult {
 
       let metricTypeName = metricType.split('.')[1];
       if (MetricTypes[metricTypeName].shouldBeRounded) {
-        const __ret = this.toRoundedMetricString(
+        const roundedMetric = this.toRoundedMetricString(
           currentAvgValue, pastAvgValue, numericDelta, percentageDelta);
-        currentValueStr = __ret.currentValueStr;
-        pastAvgValueStr = __ret.pastAvgValueStr;
-        numericDeltaStr = __ret.numericDeltaStr;
-        percentageDeltaStr = __ret.percentageDeltaStr;
+        currentValueStr = roundedMetric.currentValueStr;
+        pastAvgValueStr = roundedMetric.pastAvgValueStr;
+        numericDeltaStr = roundedMetric.numericDeltaStr;
+        percentageDeltaStr = roundedMetric.percentageDeltaStr;
 
       }
       // A stat already avg for period
       else if (
         metricType.includes('cost_per_conversion') ||
         metricType.includes('cost_micros')) {
-        const __ret = this.toMetricStrings(
+        const metricString = this.toMetricStrings(
           currentAvgValue, pastAvgValue, numericDelta, percentageDelta,
           this.currencyCode + ' ', '', 2);
-        currentValueStr = __ret.currentValueStr;
-        pastAvgValueStr = __ret.pastAvgValueStr;
-        numericDeltaStr = __ret.numericDeltaStr;
-        percentageDeltaStr = __ret.percentageDeltaStr;
+        currentValueStr = metricString.currentValueStr;
+        pastAvgValueStr = metricString.pastAvgValueStr;
+        numericDeltaStr = metricString.numericDeltaStr;
+        percentageDeltaStr = metricString.percentageDeltaStr;
       }
       // A stat already avg for period
       else if (metricType.includes('ctr')) {
@@ -343,13 +357,13 @@ class CadSingleResult {
         metricType.includes('average_cpc') ||
         metricType.includes('average_cpm') ||
         metricType.includes('average_cpv')) {
-        const __ret = this.toMetricStrings(
+        const metricString = this.toMetricStrings(
           currentAvgValue, pastAvgValue, numericDelta, percentageDelta, '',
           '', 1);
-        currentValueStr = __ret.currentValueStr;
-        pastAvgValueStr = __ret.pastAvgValueStr;
-        numericDeltaStr = __ret.numericDeltaStr;
-        percentageDeltaStr = __ret.percentageDeltaStr;
+        currentValueStr = metricString.currentValueStr;
+        pastAvgValueStr = metricString.pastAvgValueStr;
+        numericDeltaStr = metricString.numericDeltaStr;
+        percentageDeltaStr = metricString.percentageDeltaStr;
       }
 
       const toStringFormatter = ToStringFormatter.getInstance();
@@ -363,14 +377,11 @@ class CadSingleResult {
           `⇩⇩ ${percentageDeltaStr}`;
       }
 
-
       alertTextForEntity.push(`<tr><td> ${metricType} </td><td> ${currentValueStr} </td><td> ${pastAvgValueStr} </td><td>
 ${numericDeltaStr} </td><td> ${percentageDeltaStr} </td></tr>`);
     }
     return `${alertTextForEntity.join('')} </table>`;
   };
-
-
 
   /**
    * @param {number} currentAvgValue current value (avg)
@@ -437,7 +448,6 @@ ${numericDeltaStr} </td><td> ${percentageDeltaStr} </td></tr>`);
       this.campaign.name,
     ];
 
-
     console.log(`this.metricComparisonResults = ${JSON.stringify(this.allMetricsComparisons)}`);
     for (let metricType in this.allMetricsComparisons) {
       let metricName = metricType.split(".")[1];
@@ -493,39 +503,45 @@ class CadConfig {
   constructor() {
     this.mcc = undefined;
     this.users = [];
-    this.avg_type = "days";
+    this.avgType = "Daily Avg";
+
+    this.hourSegmentsWhereClause = { current: "", past: "" };
+    this.hourSegmentInSelect = "";
+
+    this.divideCurrentBy = 1;
+    this.dividePastBy = 1;
 
     this.lookbackInUnits = {
-      current_range_day: undefined,
-      current_range_period: undefined,
-      past_range_day: undefined,
-      past_range_period: undefined
+      current_period_length: undefined,
+      current_ended_length_ago: undefined,
+      past_period_length: undefined,
+      past_ended_length_ago: undefined
     };
 
-//after code calculation:
+    //after code calculation:
     this.lookbackInDays = {
-      current_range_day: undefined,
-      current_range_period: undefined,
-      past_range_day: undefined,
-      past_range_period: undefined
+      current_period_length: {},
+      current_ended_length_ago: {},
+      past_period_length: {},
+      past_ended_length_ago: {},
     };
 
     this.lookbackDates = {
-      current_range_start_date: undefined,
-      current_range_end_date: undefined,
-      past_range_start_date: undefined,
-      past_range_end_date: undefined,
+      current_range_start_date: {},
+      current_range_end_date: {},
+      past_range_start_date: {},
+      past_range_end_date: {},
     };
     this.accounts = {
       account_ids: [],
-      excluded_account_ids: [],
+      account_excluded_ids: [],
       account_labels: []
     };
     this.campaigns = {
-      campaign_ids: [],
-      all_campaigns_for_accounts: [],
-      excluded_campaign_ids: [],
-      campaign_labels: []
+      campaign_ids: "",
+      campaign_excluded_ids: "",
+      campaign_labels: "",
+      all_campaigns_for_accounts: ""
     };
     // A map of "metric-type -> metric-thresholds"
     this.thresholds = {};
@@ -547,22 +563,17 @@ class MetricThreshold {
 
 
 /** ============= main ==================== */
-
-
 /**
  * 
  **/
 function main() {
 
-  const sheet = SheetUtils.getInstance();
-  sheet.validateInput();
-  const cadConfig = sheet.readInput();
+  const sheetUtils = SheetUtils.getInstance();
+  sheetUtils.validateInput();
+  const cadConfig = sheetUtils.readInput();
 
   // process request
   const cadResults = getResultsForAllRelevantEntitiesUnderMCC(cadConfig);
-
-
-  //Logger.log(JSON.stringify(cadResults));
 
   // write to spreadsheet
   SheetUtils.getInstance().clearResults();
@@ -578,49 +589,93 @@ function main() {
  * @fileoverview Description of this file.
  */
 
-// import {CadConfig} from './cadClasses'
-// import {MetricTypes, TimeFrameUnits} from './consts'
-
-
-const CONSTS = {
+const NamedRanges = {
   RESULTS_SHEET_NAME: 'results',
   EMAILS: 'emails',
+  MCC_ID: 'MCC_ID',
 
-  CURRENT_RANGE_UNIT: 'current_range_unit',
-  
+  CURRENT_PERIOD_UNIT: 'current_period_unit',
   CURRENT_END_UNIT: 'current_end_unit',
+
   PAST_END_UNIT: 'past_end_unit',
-  
-  AVG_TYPE : 'AVG_TYPE',
-  AVG_TYPE_ERROR : 'AVG_TYPE_ERROR',
-  RESULTS_CURRENT_RNAGE_DATES: 'results_current_range_dates',
-  RESULTS_PAST_RNAGE_DATES: 'results_past_range_dates',
+
+  AVG_TYPE: 'AVG_TYPE',
+  AVG_TYPE_ERROR: 'AVG_TYPE_ERROR',
+  RESULTS_CURRENT_RANGE_DATES: 'results_current_range_dates',
+  RESULTS_PAST_RANGE_DATES: 'results_past_range_dates',
   FIRST_DATA_ROW: 7,
   FIRST_DATA_COLUMN: 1,
+  ENTITIY_IDS: "entity_ids",
+  ENTITY_LABELS: "entity_labels",
+  ENTITY_EXCLUDED_IDS: "entity_excluded_ids",
+  ALL_CAMPAIGNS_FOR_ACCOUNTS: "entity_excluded_ids",
+
+  DATA_AGGREGATION: "data_aggregation",
+};
+
+const AVG_TYPE = {
+  AVG_TYPE_DAILY_WEEKDAYS: "Daily Avg. Same Weekday as today ---> (Today) vs. (a few instances from past weeks)----> both: midnight till last data hour.",
+  AVG_TYPE_DAILY_TODAY_VS_YESTERDAY: "Daily Avg. (Today) vs. (Yesterday)  -----> both: midnight till last data hour.",
+  AVG_TYPE_HOURLY_TODAY: "Hourly Avg. Inside Today ------> (Last data hour) vs. (midnight till that hout)",
+  AVG_TYPE_DAILY: "Daily Avg. Full days.",
+  AVG_TYPE_WEEKLY: "Weekly (last 7 days) Avg",
+  AVG_TYPE_CUSTOM: "Custom"
 };
 
 
 const TimeFrameUnits = {
-  'days': 1,
-  'weeks': 7
+  'Days': 1,
+  'Weeks': 7
 };
 
-const AvgTypes = {
-  'current weekday (00:00 till now)': 1,
-  'days': 1,
-  'weeks': 7
-};
 
+/**
+ * Time utils methods
+ */
+class TimeUtils {
+
+  /**
+   * The singleton instance
+   * @return {!TimeUtils} The singleton instance
+   */
+  static getInstance() {
+    if (!this.instance) {
+      this.instance = new TimeUtils();
+    }
+    return this.instance;
+  }
+
+
+  constructor() {
+    this.TIMEZONE = AdsApp.currentAccount().getTimeZone();
+    this.HOURS_BACK = 3;
+  }
+  /**
+   * Get last queryable hour
+   */
+  getLastQueryableHourMinusHours(minusHours) {
+    const NOW = new Date();
+    const past = new Date(NOW.getTime() - (this.HOURS_BACK + minusHours) * 3600 * 1000);
+    const pastHourStr = Utilities.formatDate(past, this.TIMEZONE, 'HH');
+    return {
+      hourInt: parseInt(pastHourStr, 10),
+      query_date: ToStringFormatter.getInstance().getDateStringInTimeZone(past, 'yyyy-MM-dd'),
+      sheet_date: ToStringFormatter.getInstance().getDateStringInTimeZone(past, 'dd/MM/YY'),
+      weekday: `AND segments.day_of_week = '${weekdays[past.getDay()].toUpperCase()}'`,
+      hourWhereClauseEqual: `AND segments.hour = ${pastHourStr}`,
+      hourWhereClauseSmaller: `AND segments.hour < ${pastHourStr}`
+    };
+  }
+}
 
 /**
  * Input sheet representation
  */
 class SheetUtils {
   constructor() {
-    let my_shpreadsheet = SpreadsheetApp.openByUrl(CONFIG.spreadsheet_url);
-    this.my_shpreadsheet = my_shpreadsheet;
-    this.resultsSheet =
-      my_shpreadsheet.getSheetByName(CONSTS.RESULTS_SHEET_NAME);
+    let tmpSpreadsheet = SpreadsheetApp.openByUrl(CONFIG.spreadsheet_url);
+    this.mySpreadsheet = tmpSpreadsheet;
+    this.resultsSheet = tmpSpreadsheet.getSheetByName(NamedRanges.RESULTS_SHEET_NAME);
     this.monitoredMetrics = [];
   }
 
@@ -654,18 +709,15 @@ class SheetUtils {
    * Validate sheet input
    */
   validateInput() {
-    const sheet = this.my_shpreadsheet;
-    
-    const avgType =sheet.getRangeByName(CONSTS.AVG_TYPE).getValue();
-    const currentEndUnitRange = sheet.getRangeByName(CONSTS.CURRENT_END_UNIT);
-
-
-    if (avgType.includes("weekday")){
-      currentEndUnitRange.setValue("weeks");
+    const mySpreadsheet = this.mySpreadsheet;
+    const avgType = mySpreadsheet.getRangeByName(NamedRanges.AVG_TYPE).getValue();
+    const currentEndUnitRange = mySpreadsheet.getRangeByName(NamedRanges.CURRENT_END_UNIT);
+    if (avgType.includes("Weekday")) {
+      currentEndUnitRange.setValue("Weeks");
     }
-    if (avgType.includes("weeks")){
-      currentEndUnitRange.setValue("weeks");
-    } 
+    if (avgType.includes("Weekly")) {
+      currentEndUnitRange.setValue("Weeks");
+    }
   }
 
   /**
@@ -673,86 +725,263 @@ class SheetUtils {
    * @return {!CadConfig} a filled cad config object.
    */
   readInput() {
-    const sheet = this.my_shpreadsheet;
+    const mySpreadsheet = this.mySpreadsheet;
     let cadConfig = new CadConfig();
+    cadConfig.users = mySpreadsheet.getRangeByName(NamedRanges.EMAILS).getValue();
+    cadConfig.avgType = mySpreadsheet.getRangeByName(NamedRanges.AVG_TYPE).getValue();
 
-    cadConfig.users = sheet.getRangeByName(CONSTS.EMAILS).getValue();
+    const lastQueryableHour = TimeUtils.getInstance().getLastQueryableHourMinusHours(0);
+    cadConfig = this.fillLookbackDates(cadConfig);
 
-    // get lookback window
-    const lookbackUnitsFirstFilter = TimeFrameUnits[sheet.getRangeByName(CONSTS.CURRENT_RANGE_UNIT).getValue()] || 1;
-    const currentRangeEndedUnit = TimeFrameUnits[sheet.getRangeByName(CONSTS.CURRENT_END_UNIT).getValue()] || 1;
-    const pastRangeEndedUnit = TimeFrameUnits[sheet.getRangeByName(CONSTS.PAST_END_UNIT).getValue()] || 1;
+    console.log(`cadConfig.avgType ==== ${JSON.stringify(cadConfig.avgType)}`);
 
+    cadConfig = this.addSegmentsHourToQuery(cadConfig, lastQueryableHour);
+    cadConfig = this.setDivideBy(cadConfig, lastQueryableHour);
 
-    for (let el in cadConfig.lookbackInUnits) {
-      cadConfig.lookbackInUnits[el] = sheet.getRangeByName(el).getValue();
+    const entity_ids = mySpreadsheet.getRangeByName(NamedRanges.ENTITIY_IDS).getValue();
+    const entity_labels = mySpreadsheet.getRangeByName(NamedRanges.ENTITY_LABELS).getValue();
+    const entity_excluded_ids = mySpreadsheet.getRangeByName(NamedRanges.ENTITY_EXCLUDED_IDS).getValue();
+    const data_aggregation = mySpreadsheet.getRangeByName(NamedRanges.DATA_AGGREGATION).getValue();
+
+    if (data_aggregation === "Account") {
+      cadConfig.accounts.account_ids = SheetUtils.getInstance().toArray(entity_ids);
+      cadConfig.accounts.account_labels = SheetUtils.getInstance().toArray(entity_labels);
+      cadConfig.accounts.excluded_account_ids = SheetUtils.getInstance().toArray(entity_excluded_ids);
     }
 
-    const toStringFormatter = ToStringFormatter.getInstance();
-
-    cadConfig.lookbackInDays.current_range_day =
-      parseFloat(cadConfig.lookbackInUnits.current_range_day) * lookbackUnitsFirstFilter;
-    cadConfig.lookbackInDays.current_range_period =
-      (parseFloat(cadConfig.lookbackInUnits.current_range_period) * currentRangeEndedUnit);
-    cadConfig.lookbackInDays.past_range_day =
-      parseFloat(cadConfig.lookbackInUnits.past_range_day) * lookbackUnitsFirstFilter;
-    cadConfig.lookbackInDays.past_range_period =
-      (parseFloat(cadConfig.lookbackInUnits.past_range_period) * pastRangeEndedUnit);
-
-    cadConfig.lookbackDates.current_range_start_date =
-      toStringFormatter.getDateStringForMinusDays(
-        cadConfig.lookbackInDays.current_range_period - 1 +
-        cadConfig.lookbackInDays.current_range_day);
-
-    cadConfig.lookbackDates.current_range_end_date =
-      toStringFormatter.getDateStringForMinusDays(
-        cadConfig.lookbackInDays.current_range_day);
-
-    cadConfig.lookbackDates.past_range_start_date =
-      toStringFormatter.getDateStringForMinusDays(
-        cadConfig.lookbackInDays.past_range_period - 1 +
-        cadConfig.lookbackInDays.past_range_day);
-
-    cadConfig.lookbackDates.past_range_end_date =
-      toStringFormatter.getDateStringForMinusDays(
-        cadConfig.lookbackInDays.past_range_day);
-
-
-    // get accounts config
-    for (let el in cadConfig.accounts) {
-      cadConfig.accounts[el] = this.toArray(sheet.getRangeByName(el).getValue());
-    }
-
-    // get campaigns config
-    for (let el in cadConfig.campaigns) {
-      cadConfig.campaigns[el] = sheet.getRangeByName(el).getValue();
+    if (data_aggregation === "Campaign") {
+      cadConfig.campaigns.campaign_ids = entity_ids;
+      cadConfig.campaigns.campaign_labels = entity_labels;
+      cadConfig.campaigns.excluded_campaign_ids = entity_excluded_ids;
+      cadConfig.campaigns.all_campaigns_for_accounts = mySpreadsheet.getRangeByName(NamedRanges.ALL_CAMPAIGNS_FOR_ACCOUNTS).getValue();
     }
 
     for (let metric of this.getMonitoredMetrics()) {
       cadConfig.thresholds[`${metric}_high`] =
-        parseFloat(sheet.getRangeByName(`${metric}_high`).getValue());
+        parseFloat(mySpreadsheet.getRangeByName(`${metric}_high`).getValue());
       cadConfig.thresholds[`${metric}_low`] =
-        parseFloat(sheet.getRangeByName(`${metric}_low`).getValue());
+        parseFloat(mySpreadsheet.getRangeByName(`${metric}_low`).getValue());
       cadConfig.thresholds[`${metric}_ignore`] =
-        parseFloat(sheet.getRangeByName(`${metric}_ignore`).getValue());
+        parseFloat(mySpreadsheet.getRangeByName(`${metric}_ignore`).getValue());
     }
 
     return cadConfig;
   }
 
+  addSegmentsHourToQuery(cadConfig, other) {
+    switch (cadConfig.avgType) {
+      case AVG_TYPE.AVG_TYPE_DAILY:
+      case AVG_TYPE.AVG_TYPE_WEEKLY:
+      case AVG_TYPE.AVG_TYPE_CUSTOM:
+        {
+          cadConfig.hourSegmentInSelect = ``;
+          cadConfig.hourSegmentsWhereClause = { current: "", past: "" };
+          break;
+        }
+      case AVG_TYPE.AVG_TYPE_DAILY_WEEKDAYS:
+        {
+          cadConfig.hourSegmentInSelect = `, segments.date, segments.hour, segments.day_of_week `;
+          cadConfig.hourSegmentsWhereClause = {
+            current: `${other.hourWhereClauseSmaller} ${other.weekday}`,
+            past: `${other.hourWhereClauseSmaller} ${other.weekday}`
+          };
+          break;
+        }
+      case AVG_TYPE.AVG_TYPE_DAILY_TODAY_VS_YESTERDAY:
+        {
+          cadConfig.hourSegmentInSelect = `, segments.date, segments.hour `;
+          cadConfig.hourSegmentsWhereClause = { current: other.hourWhereClauseSmaller, past: other.hourWhereClauseSmaller };
+          break;
+        }
+      case AVG_TYPE.AVG_TYPE_HOURLY_TODAY:
+        {
+          cadConfig.hourSegmentInSelect = `,segments.date, segments.hour `;
+          cadConfig.hourSegmentsWhereClause = { current: other.hourWhereClauseEqual, past: other.hourWhereClauseSmaller };
+          break;
+        }
+    }
+    return cadConfig;
+  }
+
+  setDivideBy(cadConfig) {
+    switch (cadConfig.avgType) {
+      case AVG_TYPE.AVG_TYPE_DAILY_WEEKDAYS:
+        {
+          cadConfig.divideCurrentBy = 1;
+          cadConfig.dividePastBy = cadConfig.lookbackInUnits.past_period_length;
+          break;
+        }
+      case AVG_TYPE.AVG_TYPE_DAILY_TODAY_VS_YESTERDAY:
+        {
+          cadConfig.divideCurrentBy = 1;
+          cadConfig.dividePastBy = 1;
+          break;
+        }
+      case AVG_TYPE.AVG_TYPE_HOURLY_TODAY:
+        {
+          cadConfig.divideCurrentBy = 1;
+
+          const beforeLastQueryableHour = TimeUtils.getInstance().getLastQueryableHourMinusHours(1);
+          cadConfig.dividePastBy = beforeLastQueryableHour.hourInt;
+          break;
+        }
+
+      case AVG_TYPE.AVG_TYPE_DAILY:
+      case AVG_TYPE.AVG_TYPE_WEEKLY:
+      case AVG_TYPE.AVG_TYPE_CUSTOM:
+        {
+          cadConfig.divideCurrentBy = cadConfig.lookbackInUnits.current_period_length;
+          cadConfig.dividePastBy = cadConfig.lookbackInUnits.past_period_length;
+          break;
+        }
+    }
+    return cadConfig;
+  }
+
+  fillLookbackDates(cadConfig) {
+    const mySpreadsheet = this.mySpreadsheet;
+    const lastQueryableHour = TimeUtils.getInstance().getLastQueryableHourMinusHours(0);
+
+    switch (cadConfig.avgType) {
+      case AVG_TYPE.AVG_TYPE_DAILY_WEEKDAYS:
+      case AVG_TYPE.AVG_TYPE_DAILY_TODAY_VS_YESTERDAY:
+      case AVG_TYPE.AVG_TYPE_HOURLY_TODAY:
+        {
+          this.setSheetAndQueryDates(cadConfig.lookbackDates.current_range_start_date, lastQueryableHour);
+          this.setSheetAndQueryDates(cadConfig.lookbackDates.current_range_end_date, lastQueryableHour);
+          break;
+        }
+    }
+    const currentAndPastPeriodUnit = TimeFrameUnits[mySpreadsheet.getRangeByName(NamedRanges.CURRENT_PERIOD_UNIT).getValue()] || 1;
+    const currentEndUnit = TimeFrameUnits[mySpreadsheet.getRangeByName(NamedRanges.CURRENT_END_UNIT).getValue()] || 1;
+    const pastEndUnit = TimeFrameUnits[mySpreadsheet.getRangeByName(NamedRanges.PAST_END_UNIT).getValue()] || 1;
+    for (let el in cadConfig.lookbackInUnits) {
+      cadConfig.lookbackInUnits[el] = mySpreadsheet.getRangeByName(el).getValue();
+    }
+
+    const toStringFormatter = ToStringFormatter.getInstance();
+    let beforeLastQueryableHour = TimeUtils.getInstance().getLastQueryableHourMinusHours(1);
+
+    switch (cadConfig.avgType) {
+      case AVG_TYPE.AVG_TYPE_HOURLY_TODAY:
+        {
+          this.setSheetAndQueryDates(cadConfig.lookbackDates.past_range_start_date, beforeLastQueryableHour);
+          this.setSheetAndQueryDates(cadConfig.lookbackDates.past_range_end_date, beforeLastQueryableHour);
+
+          cadConfig.lookbackInDays.current_period_length = "partial 1";
+          cadConfig.lookbackInDays.current_ended_length_ago = 0;
+          cadConfig.lookbackInDays.past_period_length = "partial 1";
+          cadConfig.lookbackInDays.past_ended_length_ago = 0;
+          break;
+        }
+
+      case AVG_TYPE.AVG_TYPE_DAILY_TODAY_VS_YESTERDAY:
+        {
+          beforeLastQueryableHour = TimeUtils.getInstance().getLastQueryableHourMinusHours(24);
+          this.setSheetAndQueryDates(cadConfig.lookbackDates.past_range_start_date, beforeLastQueryableHour);
+          this.setSheetAndQueryDates(cadConfig.lookbackDates.past_range_end_date, beforeLastQueryableHour);
+
+
+          cadConfig.lookbackInDays.current_period_length = "partial 1";
+          cadConfig.lookbackInDays.current_ended_length_ago = 0;
+          cadConfig.lookbackInDays.past_period_length = "partial 1";
+          cadConfig.lookbackInDays.past_ended_length_ago = 1;
+          break;
+        }
+      case AVG_TYPE.AVG_TYPE_DAILY_WEEKDAYS:
+        {
+          cadConfig.lookbackInDays.current_period_length = 1;
+          cadConfig.lookbackInDays.current_ended_length_ago = 0;
+
+          cadConfig.lookbackInDays.past_period_length =
+            parseFloat(cadConfig.lookbackInUnits.past_period_length) * currentAndPastPeriodUnit;
+          cadConfig.lookbackInDays.past_ended_length_ago =
+            (parseFloat(cadConfig.lookbackInUnits.past_ended_length_ago) * pastEndUnit);
+
+          cadConfig.lookbackDates.current_range_start_date =
+            toStringFormatter.getStringForMinusDaysAgo(
+              cadConfig.lookbackInDays.current_ended_length_ago - 1 +
+              cadConfig.lookbackInDays.current_period_length);
+
+          cadConfig.lookbackDates.current_range_end_date =
+            toStringFormatter.getStringForMinusDaysAgo(
+              cadConfig.lookbackInDays.current_ended_length_ago);
+
+          cadConfig.lookbackDates.past_range_start_date =
+            toStringFormatter.getStringForMinusDaysAgo(
+              cadConfig.lookbackInDays.past_ended_length_ago - 1 +
+              cadConfig.lookbackInDays.past_period_length);
+
+          cadConfig.lookbackDates.past_range_end_date =
+            toStringFormatter.getStringForMinusDaysAgo(
+              cadConfig.lookbackInDays.past_ended_length_ago);
+
+          break;
+        }
+
+      case AVG_TYPE.AVG_TYPE_DAILY:
+      case AVG_TYPE.AVG_TYPE_WEEKLY:
+      case AVG_TYPE.AVG_TYPE_CUSTOM:
+        {
+          cadConfig.lookbackInDays.current_period_length =
+            parseFloat(cadConfig.lookbackInUnits.current_period_length) * currentAndPastPeriodUnit;
+          cadConfig.lookbackInDays.current_ended_length_ago =
+            (parseFloat(cadConfig.lookbackInUnits.current_ended_length_ago) * currentEndUnit);
+          cadConfig.lookbackInDays.past_period_length =
+            parseFloat(cadConfig.lookbackInUnits.past_period_length) * currentAndPastPeriodUnit;
+          cadConfig.lookbackInDays.past_ended_length_ago =
+            (parseFloat(cadConfig.lookbackInUnits.past_ended_length_ago) * pastEndUnit);
+
+          cadConfig.lookbackDates.current_range_start_date =
+            toStringFormatter.getStringForMinusDaysAgo(
+              cadConfig.lookbackInDays.current_ended_length_ago +
+              cadConfig.lookbackInDays.current_period_length);
+
+          cadConfig.lookbackDates.current_range_end_date =
+            toStringFormatter.getStringForMinusDaysAgo(
+              cadConfig.lookbackInDays.current_ended_length_ago + 1);
+
+          cadConfig.lookbackDates.past_range_start_date =
+            toStringFormatter.getStringForMinusDaysAgo(
+              cadConfig.lookbackInDays.past_ended_length_ago +
+              cadConfig.lookbackInDays.past_period_length);
+
+          cadConfig.lookbackDates.past_range_end_date =
+            toStringFormatter.getStringForMinusDaysAgo(
+              cadConfig.lookbackInDays.past_ended_length_ago + 1);
+          break;
+        }
+    }
+    return cadConfig;
+  }
+
+
+  setSheetAndQueryDates(cadConfigDate, other) {
+    cadConfigDate.query_date = other.query_date;
+    cadConfigDate.sheet_date = other.sheet_date;
+  }
 
   /**
    * Write meta data to the sheet
    */
   writeMetaData(cadConfig) {
-    this.my_shpreadsheet.getRangeByName(CONSTS.RESULTS_CURRENT_RNAGE_DATES)
-      .setValue(
-        `${cadConfig.lookbackDates.current_range_start_date.sheet_date} - ${cadConfig.lookbackDates.current_range_end_date.sheet_date} (${cadConfig.lookbackInDays.current_range_period} days)`);
-
-    this.my_shpreadsheet.getRangeByName(CONSTS.RESULTS_PAST_RNAGE_DATES)
-      .setValue(
-        `${cadConfig.lookbackDates.past_range_start_date.sheet_date} - ${cadConfig.lookbackDates.past_range_end_date.sheet_date} (${cadConfig.lookbackInDays.past_range_period} days)`);
+    this.mySpreadsheet.getRangeByName(NamedRanges.MCC_ID).setValue(cadConfig.mcc);
+    this.setDatesInResultsSheet(cadConfig);
   }
+
+  /**
+   * Sets date ranges header in results sheet
+   */
+  setDatesInResultsSheet(cadConfig) {
+    this.mySpreadsheet.getRangeByName(NamedRanges.RESULTS_CURRENT_RANGE_DATES)
+      .setValue(
+        `${cadConfig.lookbackDates.current_range_start_date.sheet_date} - ${cadConfig.lookbackDates.current_range_end_date.sheet_date} (${cadConfig.lookbackInDays.current_period_length} days)`);
+
+    this.mySpreadsheet.getRangeByName(NamedRanges.RESULTS_PAST_RANGE_DATES)
+      .setValue(
+        `${cadConfig.lookbackDates.past_range_start_date.sheet_date} - ${cadConfig.lookbackDates.past_range_end_date.sheet_date} (${cadConfig.lookbackInDays.past_period_length} days)`);
+  }
+
 
   /**
    * write CAD results to results sheet
@@ -760,7 +989,7 @@ class SheetUtils {
    */
   writeResults(cadResults) {
     const newStartingRow =
-      Math.max(CONSTS.FIRST_DATA_ROW, this.resultsSheet.getLastRow() + 1);
+      Math.max(NamedRanges.FIRST_DATA_ROW, this.resultsSheet.getLastRow() + 1);
 
     let newRows = [];
     cadResults.forEach(function (row) {
@@ -773,7 +1002,7 @@ class SheetUtils {
       const metricListLength = Object.keys(this.getMonitoredMetrics()).length;
       this.resultsSheet
         .getRange(
-          newStartingRow, CONSTS.FIRST_DATA_COLUMN, newRows.length,
+          newStartingRow, NamedRanges.FIRST_DATA_COLUMN, newRows.length,
           (5 + 4 * metricListLength))
         .setValues(newRows);
     }
@@ -785,9 +1014,9 @@ class SheetUtils {
    */
   clearResults() {
     const lastRow = this.resultsSheet.getLastRow();
-    const howMany = lastRow - CONSTS.FIRST_DATA_ROW + 1;
+    const howMany = lastRow - NamedRanges.FIRST_DATA_ROW + 1;
     if (howMany > 0) {
-      this.resultsSheet.deleteRows(CONSTS.FIRST_DATA_ROW, howMany);
+      this.resultsSheet.deleteRows(NamedRanges.FIRST_DATA_ROW, howMany);
     }
     let maxRows = this.resultsSheet.getMaxRows();
     if (maxRows < 350) {
@@ -796,24 +1025,9 @@ class SheetUtils {
   }
 
 
-  /**
-   * Sets date ranges header in results sheet
-   *
-   * @param {!Object} currentRangeStartDate range start date.
-   * @param {!Object} currentRangeEndDate range end date.
-   * @param {!Object} pastRangeStartDate range start date.
-   * @param {!Object} pastRangeEndDate range end date.
-   *
-   */
-  setDatesInResultsSheet(
-    currentRangeStartDate, currentRangeEndDate, pastRangeStartDate,
-    pastRangeEndDate) {
-    this.MY_SPREADSHEET.getRangeByName(CONSTS.CURRENT_RANGE_DATES)
-      .setValue(`${currentRangeStartDate.sheet_date} - ${currentRangeEndDate.sheet_date} (${this.current_range_period} * ${this.getValueForNamedRange(CONSTS.LENGTH_UNIT)} )`);
-    this.MY_SPREADSHEET.getRangeByName(CONSTS.PAST_RANGE_DATES)
-      .setValue(`${pastRangeStartDate.sheet_date} - ${pastRangeEndDate.sheet_date} (${this.past_range_period} * ${this.getValueForNamedRange(CONSTS.LENGTH_UNIT)} )`);
+  getValueForNamedRange(name) {
+    return this.mySpreadsheet.getRangeByName(name).getValue();
   }
-
 
   /**
    * Generates a string list from a value in a sheet named range.
@@ -833,8 +1047,6 @@ class SheetUtils {
     return value;
   }
 }
-
-// export default
 
 /** ============= Google Ads Account Selector ==================== */
 
@@ -868,7 +1080,7 @@ class GoogleAdsAccountSelector {
    * @param {!Array<?>} ids Id list
    * @return {!Array<?>} account list
    */
-  getAccountsForIds(ids) {
+  getAccountObjectsForIds(ids) {
     Logger.log('accountIterator=' + JSON.stringify(ids));
     let accountIterator = AdsManagerApp.accounts().withIds(ids).get();
     return this.iterate(accountIterator);
@@ -896,12 +1108,13 @@ class GoogleAdsAccountSelector {
    * @return {!Set<?>} Account set to traverse
    */
   getAccountsToTraverse(cadConfig) {
-    let accounts = {};
+    let accountsObjects = {};
 
     if (CONFIG.is_debug_log) {
       console.log('getAccountsToTraverse= ' + JSON.stringify(cadConfig));
     }
 
+    //because the campaign can be anywhere - we need to scan all the child accounts anyhow.
     if (cadConfig.campaigns.campaign_ids != '') {
       Logger.log(JSON.stringify(cadConfig.campaigns.campaign_ids));
       return this.getAllSubAccounts();
@@ -910,7 +1123,7 @@ class GoogleAdsAccountSelector {
       if (cadConfig.accounts.account_ids[0].toUpperCase() == 'ALL') {
         return this.getAllSubAccounts();
       } else {
-        Object.assign(accounts, this.getAccountsForIds(cadConfig.accounts.account_ids));
+        Object.assign(accountsObjects, this.getAccountObjectsForIds(cadConfig.accounts.account_ids));
       }
     }
     if (cadConfig.accounts.account_labels.length > 0 ||
@@ -919,11 +1132,10 @@ class GoogleAdsAccountSelector {
     }
     if (cadConfig.campaigns.all_campaigns_for_accounts != '') {
       const all_campaigns_for_accounts =
-        this.getAccountsForIds(SheetUtils.getInstance().toArray(
-          cadConfig.campaigns.all_campaigns_for_accounts));
-      Object.assign(accounts, all_campaigns_for_accounts);
+        this.getAccountObjectsForIds(cadConfig.campaigns.all_campaigns_for_accounts);
+      Object.assign(accountsObjects, all_campaigns_for_accounts);
     }
-    return accounts;
+    return accountsObjects;
   }
 
 
@@ -967,8 +1179,8 @@ class GoogleAdsCampaignSelector {
     const campaignIds = cadConfig.campaigns.campaign_ids;
     const all_campaigns_for_accounts =
       cadConfig.campaigns.all_campaigns_for_accounts;
-    const campaignLabels = cadConfig.campaigns.campaignLabels;
-    const excludedCampaignIds = cadConfig.campaigns.excludedCampaignIds;
+    const campaignLabels = cadConfig.campaigns.campaign_labels;
+    const excludedCampaignIds = cadConfig.campaigns.excluded_campaign_ids;
     const excludedClause = (!excludedCampaignIds || excludedCampaignIds == '') ?
       '' :
       `AND campaign.id NOT IN ('${excludedCampaignIds}' )`;
@@ -1047,8 +1259,6 @@ class GoogleAdsCampaignSelector {
 
 let _gads_query_fields = [];
 
-
-
 /**
  * returns a string with all the GAQL relevant query fields 
  * @return {string} a string with all the GAQL relevant query fields 
@@ -1082,11 +1292,6 @@ function getResultsForAllRelevantEntitiesUnderMCC(cadConfig) {
   const accountsToTraverse =
     gAdsAccountSelector.getAccountsToTraverse(cadConfig);
 
-
-  for (const currentAccount of Object.keys(accountsToTraverse)) {
-    console.log(`====Switching to account ${currentAccount}`);
-  }
-
   for (const currentAccount of Object.values(accountsToTraverse)) {
     console.log(`Switching to account ${currentAccount.getCustomerId()}`);
 
@@ -1110,15 +1315,10 @@ function getResultsForRelevantEntitiesUnderAccount(gAdsAccountSelector, currentA
   cadResults = cadResults.concat(
     aggAccountReportToCadResults(gAdsAccountSelector, currentAccount, cadConfig));
 
-  console.log(`1054 cadResults==== ${JSON.stringify(cadResults)}`);
-
   const gAdsCampaignSelector = new GoogleAdsCampaignSelector();
   const relevantCampaignMap =
-    gAdsCampaignSelector.reportToRelevantCampaignMap(
-      currentAccount, cadConfig);
+    gAdsCampaignSelector.reportToRelevantCampaignMap(currentAccount, cadConfig);
   cadResults = cadResults.concat(campaignReportToCadResults(relevantCampaignMap, cadConfig));
-
-  console.log(`1062 cadResults==== ${JSON.stringify(cadResults)}`);
 
   if (CONFIG.is_debug_log) {
     Logger.log(
@@ -1156,30 +1356,36 @@ function aggAccountReportToCadResults(gAdsAccountSelector, currentAccount, cadCo
 
   // Customer query
   const getGadsCustomerQueryFields = removeElementFromStringList("metrics.search_click_share", getGadsQueryFields());
-  let baseQuery = `SELECT customer.descriptive_name, ${getGadsCustomerQueryFields} FROM customer WHERE segments.date BETWEEN`;
+  console.log(`getGadsCustomerQueryFields for CUSTOMER = ${getGadsCustomerQueryFields}`)
+  let baseQuery = `SELECT customer.descriptive_name, ${getGadsCustomerQueryFields} ${cadConfig.hourSegmentInSelect} FROM customer WHERE segments.date BETWEEN`;
 
-  let currentQuery = `${baseQuery} "${cadConfig.lookbackDates.current_range_start_date.query_date}" AND "${cadConfig.lookbackDates.current_range_end_date.query_date}"`;
-  let pastQuery = `${baseQuery} "${cadConfig.lookbackDates.past_range_start_date.query_date}" AND "${cadConfig.lookbackDates.past_range_end_date.query_date}"`;
+
+  let currentQuery = `${baseQuery} "${cadConfig.lookbackDates.current_range_start_date.query_date}" AND "${cadConfig.lookbackDates.current_range_end_date.query_date}" 
+  ${cadConfig.hourSegmentsWhereClause.current}`;
+  let pastQuery = `${baseQuery} "${cadConfig.lookbackDates.past_range_start_date.query_date}" AND "${cadConfig.lookbackDates.past_range_end_date.query_date}" ${cadConfig.hourSegmentsWhereClause.past}`;
+
+  if (CONFIG.is_debug_log) {
+    Logger.log(
+      'currentQuery accounts= ' +
+      JSON.stringify(currentQuery));
+    Logger.log(
+      'pastQuery accounts= ' +
+      JSON.stringify(pastQuery));
+  }
+
 
   let currentStats = storeReportByEntityId(
-    AdsApp.report(currentQuery, CONFIG.reporting_options));
-
+    AdsApp.report(currentQuery, CONFIG.reporting_options), cadConfig);
   let pastStats =
-    storeReportByEntityId(AdsApp.report(pastQuery, CONFIG.reporting_options));
+    storeReportByEntityId(AdsApp.report(pastQuery, CONFIG.reporting_options), cadConfig);
 
 
   if (CONFIG.is_debug_log) {
     Logger.log(
-      'currentQuery= ' +
-      JSON.stringify(currentQuery));
-    Logger.log(
-      'pastQuery= ' +
-      JSON.stringify(pastQuery));
-    Logger.log(
-      'currentStats= ' +
+      'currentStats accounts= ' +
       JSON.stringify(currentStats));
     Logger.log(
-      'pastStats= ' +
+      'pastStats accounts= ' +
       JSON.stringify(pastStats));
   }
 
@@ -1206,7 +1412,7 @@ function aggAccountReportToCadResults(gAdsAccountSelector, currentAccount, cadCo
 
       if (CONFIG.is_debug_log) {
         Logger.log(
-          'aggAccountReportToCadResults added= ' + JSON.stringify(cadSingleResult));
+          'aggAccountReportToCadResults cadSingleResult triggers alert= ' + JSON.stringify(cadSingleResult));
       }
       cadResults.push(cadSingleResult);
     }
@@ -1275,23 +1481,27 @@ function campaignReportToCadResults(
     Logger.log(`Reporting for campaign ids = ${JSON.stringify(campaignIds)}`);
   }
 
+
+
+
   // We expect current searchResults to contain DISABLED campaigns as well
   // thus > past results
   //  Campaign query
-  const specificCampaignsQuery =
-    `SELECT customer.descriptive_name, campaign.id, campaign.name, ${getGadsQueryFields()} FROM campaign WHERE campaign.id IN (${campaignIds}) AND segments.date BETWEEN`;
+  let specificCampaignsQuery =
+    `SELECT customer.descriptive_name, campaign.id, campaign.name, ${getGadsQueryFields()} ${cadConfig.hourSegmentInSelect} FROM campaign WHERE campaign.id IN (${campaignIds}) AND segments.date BETWEEN`;
 
+  switch (cadConfig.avgType) {
+    case AVG_TYPE.AVG_TYPE_DAILY_WEEKDAYS:
+    case AVG_TYPE.AVG_TYPE_DAILY_TODAY_VS_YESTERDAY:
+    case AVG_TYPE.AVG_TYPE_HOURLY_TODAY:
+      {
+        specificCampaignsQuery = removeElementFromStringList("metrics.search_click_share", specificCampaignsQuery);
+        break;
+      };
+  }
 
-  let currentQuery = `${specificCampaignsQuery} "${cadConfig.lookbackDates.current_range_start_date.query_date}" AND "${cadConfig.lookbackDates.current_range_end_date.query_date}"`;
-  let pastQuery = `${specificCampaignsQuery} "${cadConfig.lookbackDates.past_range_start_date.query_date}" AND "${cadConfig.lookbackDates.past_range_end_date.query_date}"`;
-
-
-  let pastStats =
-    storeReportByEntityId(AdsApp.report(pastQuery, CONFIG.reporting_options));
-  let currentStats = storeReportByEntityId(
-    AdsApp.report(currentQuery, CONFIG.reporting_options));
-
-
+  let currentQuery = `${specificCampaignsQuery} "${cadConfig.lookbackDates.current_range_start_date.query_date}" AND "${cadConfig.lookbackDates.current_range_end_date.query_date}" ${cadConfig.hourSegmentsWhereClause.current}`;
+  let pastQuery = `${specificCampaignsQuery} "${cadConfig.lookbackDates.past_range_start_date.query_date}" AND "${cadConfig.lookbackDates.past_range_end_date.query_date}"  ${cadConfig.hourSegmentsWhereClause.past}`;
 
   if (CONFIG.is_debug_log) {
     Logger.log(
@@ -1300,6 +1510,12 @@ function campaignReportToCadResults(
     Logger.log(
       'pastQuery campaigns= ' +
       JSON.stringify(pastQuery));
+  }
+
+  let pastStats = storeReportByEntityId(AdsApp.report(pastQuery, CONFIG.reporting_options), cadConfig);
+  let currentStats = storeReportByEntityId(AdsApp.report(currentQuery, CONFIG.reporting_options), cadConfig);
+
+  if (CONFIG.is_debug_log) {
     Logger.log(
       'currentStats= ' +
       JSON.stringify(currentStats));
@@ -1318,9 +1534,7 @@ function campaignReportToCadResults(
       currentStats[id]['customer.descriptive_name'];
     cadSingleResult.campaign.id = currentStats[id]['campaign.id'];
     cadSingleResult.campaign.name = currentStats[id]['campaign.name'];
-
     cadSingleResult.fillMetricResults(id, pastStats, currentStats, cadConfig);
-
     if (cadSingleResult.isTriggerAlert) {
       cadResults.push(cadSingleResult);
     }
@@ -1332,20 +1546,57 @@ function campaignReportToCadResults(
 /**
  * GAds report to metric stats map
  * @param {!Object} searchResults GAds search results
+ * @param {!Object} cadConfig CAD config
  * @return {!Object} metric stats map.
  */
-function storeReportByEntityId(searchResults) {
+function storeReportByEntityId(searchResults, cadConfig) {
   let statsMap = {};
   for (const row of searchResults.rows()) {
-
     let id = (row["campaign.id"]) ? row["campaign.id"] :
       AdsApp.currentAccount().getCustomerId();
+    Logger.log("storeReportByEntityId for id = " + id + " row=" + JSON.stringify(row));
 
-    //Logger.log("storeReportByEntityId for id = " + id + " row=" + JSON.stringify(row));
-    statsMap[id] = row;
+    if (!statsMap[id]) {
+      statsMap[id] = row;
+      if (row["campaign.id"]) {
+        switch (cadConfig.avgType) {
+          case AVG_TYPE.AVG_TYPE_DAILY_WEEKDAYS:
+          case AVG_TYPE.AVG_TYPE_DAILY_TODAY_VS_YESTERDAY:
+          case AVG_TYPE.AVG_TYPE_HOURLY_TODAY:
+            {
+              statsMap[id]["metrics.search_click_share"] = 0;
+              break;
+            };
+        }
+      }
+    }
+    else {
+      statsMap[id] = sumRows(row, statsMap[id]);
+    }
   }
   return statsMap;
 }
+
+function sumRows(row1, row2) {
+  const result = {};
+  for (var key in row1) {
+    if (row1.hasOwnProperty(key) && row2.hasOwnProperty(key)) {
+      var val1 = row1[key];
+      var val2 = row2[key];
+      if (isNumber(val1) && isNumber(val2)) {
+        result[key] = Number(val1) + Number(val2);
+      } else if (typeof val1 === 'string' || typeof val2 === 'string') {
+        result[key] = 'cannot sum string values';
+      }
+    }
+  }
+  return result;
+}
+
+function isNumber(x) {
+  return !isNaN(x);
+}
+
 
 
 /** ============= Mail Handler ==================== */
@@ -1393,10 +1644,14 @@ class MailHandler {
     MailApp.sendEmail({
       to: emails,
       subject: `[Anomaly Alert] MCC Account [${cadConfig.mcc}]`,
-      htmlBody: `New period:
-          ${cadConfig.lookbackDates.current_range_start_date.sheet_date} - ${cadConfig.lookbackDates.current_range_end_date.sheet_date} (${cadConfig.lookbackInDays.current_range_period} days)<br>
+      htmlBody: `
+          Avg Type:
+          ${cadConfig.avgType}
+          <br><br>
+          New period:
+          ${cadConfig.lookbackDates.current_range_start_date.sheet_date} - ${cadConfig.lookbackDates.current_range_end_date.sheet_date} (${cadConfig.lookbackInDays.current_period_length} days)<br>
           Past period:
-          ${cadConfig.lookbackDates.past_range_start_date.sheet_date} - ${cadConfig.lookbackDates.past_range_end_date.sheet_date} (${cadConfig.lookbackInDays.past_range_period} days)
+          ${cadConfig.lookbackDates.past_range_start_date.sheet_date} - ${cadConfig.lookbackDates.past_range_end_date.sheet_date} (${cadConfig.lookbackInDays.past_period_length} days)
           <br><br>
           ${bodyText}
           <br><br>
@@ -1433,7 +1688,7 @@ class ToStringFormatter {
    * @return {!Object} An object with two strings formatted in yyyy-MM-dd and
    *     dd/MM/YY
    */
-  getDateStringForMinusDays(numDays) {
+  getStringForMinusDaysAgo(numDays) {
     const expectedDate =
       new Date(new Date().setDate(new Date().getDate() - numDays));
     return {
@@ -1445,7 +1700,7 @@ class ToStringFormatter {
   /**
    * Produces a formatted string representing a given date in a given time zone.
    *
-
+ 
    * @param {?Date=} date A date object. Defaults to the current date.
    * @param {string} format A format specifier for the string to be produced.
    * @return {string} A date string representation.
@@ -1464,7 +1719,6 @@ class ToStringFormatter {
    * @return {string} A string representation with decimal digits.
    */
   formatNumWithDigitAfterPeriod(num, digits) {
-    // digits = digits || 1;
     return String(num.toFixed(digits));
   }
 
@@ -1479,28 +1733,5 @@ class ToStringFormatter {
     let str = num.toString().split('.');
     str[0] = str[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
     return str.join('.');
-  }
-
-
-  /**
-   * Parse the string into a float or zero.
-   *
-   * @param {string} strValue A string representing a float.
-   * @return {number} The numeric value for that float.
-   */
-  floatOrZero(strValue) {
-    if (!strValue) return 0;
-    return parseFloat(strValue);
-  }
-
-  /**
-   * Parse the string into a float or null.
-   *
-   * @param {string} strValue A string representing a float.
-   * @return {number} The numeric value for that float.
-   */
-  floatOrUndefined(strValue) {
-    if (strValue === 'No alert' || strValue === '') return undefined;
-    return parseFloat(strValue);
   }
 }
