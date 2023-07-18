@@ -246,7 +246,7 @@ class CadSingleResult {
           currentStats[id]['metrics.cost_micros'];
       }
 
-      //after done for roas calculation.
+      //calulate an avg only after using as a sum while calculating ROAS
       else if (gAdsMetric.includes('conversions_value')) {
         comparisonResult.past = (pastStats[id]) ? pastStats[id][gAdsMetric] /
           cadConfig.dividePastBy :
@@ -736,7 +736,7 @@ class SheetUtils {
     console.log(`cadConfig.avgType ==== ${JSON.stringify(cadConfig.avgType)}`);
 
     cadConfig = this.addSegmentsHourToQuery(cadConfig, lastQueryableHour);
-    cadConfig = this.setDivideBy(cadConfig, lastQueryableHour);
+    cadConfig = this.setDivideBy(cadConfig);
 
     const entity_ids = mySpreadsheet.getRangeByName(NamedRanges.ENTITIY_IDS).getValue();
     const entity_labels = mySpreadsheet.getRangeByName(NamedRanges.ENTITY_LABELS).getValue();
@@ -764,7 +764,6 @@ class SheetUtils {
       cadConfig.thresholds[`${metric}_ignore`] =
         parseFloat(mySpreadsheet.getRangeByName(`${metric}_ignore`).getValue());
     }
-
     return cadConfig;
   }
 
@@ -852,7 +851,7 @@ class SheetUtils {
           break;
         }
     }
-    const currentAndPastPeriodUnit = TimeFrameUnits[mySpreadsheet.getRangeByName(NamedRanges.CURRENT_PERIOD_UNIT).getValue()] || 1;
+    const currentAndPastLengthUnit = TimeFrameUnits[mySpreadsheet.getRangeByName(NamedRanges.CURRENT_PERIOD_UNIT).getValue()] || 1;
     const currentEndUnit = TimeFrameUnits[mySpreadsheet.getRangeByName(NamedRanges.CURRENT_END_UNIT).getValue()] || 1;
     const pastEndUnit = TimeFrameUnits[mySpreadsheet.getRangeByName(NamedRanges.PAST_END_UNIT).getValue()] || 1;
     for (let el in cadConfig.lookbackInUnits) {
@@ -894,7 +893,7 @@ class SheetUtils {
           cadConfig.lookbackInDays.current_ended_length_ago = 0;
 
           cadConfig.lookbackInDays.past_period_length =
-            parseFloat(cadConfig.lookbackInUnits.past_period_length) * currentAndPastPeriodUnit;
+            parseFloat(cadConfig.lookbackInUnits.past_period_length) * currentAndPastLengthUnit;
           cadConfig.lookbackInDays.past_ended_length_ago =
             (parseFloat(cadConfig.lookbackInUnits.past_ended_length_ago) * pastEndUnit);
 
@@ -924,11 +923,11 @@ class SheetUtils {
       case AVG_TYPE.AVG_TYPE_CUSTOM:
         {
           cadConfig.lookbackInDays.current_period_length =
-            parseFloat(cadConfig.lookbackInUnits.current_period_length) * currentAndPastPeriodUnit;
+            parseFloat(cadConfig.lookbackInUnits.current_period_length) * currentAndPastLengthUnit;
           cadConfig.lookbackInDays.current_ended_length_ago =
             (parseFloat(cadConfig.lookbackInUnits.current_ended_length_ago) * currentEndUnit);
           cadConfig.lookbackInDays.past_period_length =
-            parseFloat(cadConfig.lookbackInUnits.past_period_length) * currentAndPastPeriodUnit;
+            parseFloat(cadConfig.lookbackInUnits.past_period_length) * currentAndPastLengthUnit;
           cadConfig.lookbackInDays.past_ended_length_ago =
             (parseFloat(cadConfig.lookbackInUnits.past_ended_length_ago) * pastEndUnit);
 
