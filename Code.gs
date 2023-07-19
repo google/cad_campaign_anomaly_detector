@@ -134,7 +134,6 @@ const MetricTypes = {
     isWriteToSheet: true
   },
 
-
   search_click_share: {
     email: 'Search click share',
     isMonitored: true,
@@ -246,7 +245,7 @@ class CadSingleResult {
           currentStats[id]['metrics.cost_micros'];
       }
 
-      //calulate an avg only after using as a sum while calculating ROAS
+      //after done with roas calculation.
       else if (gAdsMetric.includes('conversions_value')) {
         comparisonResult.past = (pastStats[id]) ? pastStats[id][gAdsMetric] /
           cadConfig.dividePastBy :
@@ -378,10 +377,25 @@ class CadSingleResult {
       }
 
       alertTextForEntity.push(`<tr><td> ${metricType} </td><td> ${currentValueStr} </td><td> ${pastAvgValueStr} </td><td>
-${numericDeltaStr} </td><td> ${percentageDeltaStr} </td></tr>`);
+${numericDeltaStr} </td><td style="color: ${this.getDeltaColorPercentage(percentageDeltaStr)};"> ${percentageDeltaStr} </td></tr>`);
     }
     return `${alertTextForEntity.join('')} </table>`;
   };
+
+
+// Function to get the color based on positive/negative percentage values
+ getDeltaColorPercentage(percentage) {
+    const numericPercentage = percentage.replace('⇪⇪ ', '').replace('%', '');
+
+    if (numericPercentage.includes("-")) {
+        return 'red';
+    } else if (numericPercentage.includes(" 0")) {
+        return 'black'; // If the value is zero
+    } else {
+        return 'green';
+    }
+}
+
 
   /**
    * @param {number} currentAvgValue current value (avg)
@@ -736,7 +750,7 @@ class SheetUtils {
     console.log(`cadConfig.avgType ==== ${JSON.stringify(cadConfig.avgType)}`);
 
     cadConfig = this.addSegmentsHourToQuery(cadConfig, lastQueryableHour);
-    cadConfig = this.setDivideBy(cadConfig);
+    cadConfig = this.setDivideBy(cadConfig, lastQueryableHour);
 
     const entity_ids = mySpreadsheet.getRangeByName(NamedRanges.ENTITIY_IDS).getValue();
     const entity_labels = mySpreadsheet.getRangeByName(NamedRanges.ENTITY_LABELS).getValue();
@@ -764,6 +778,7 @@ class SheetUtils {
       cadConfig.thresholds[`${metric}_ignore`] =
         parseFloat(mySpreadsheet.getRangeByName(`${metric}_ignore`).getValue());
     }
+
     return cadConfig;
   }
 
@@ -851,7 +866,7 @@ class SheetUtils {
           break;
         }
     }
-    const currentAndPastLengthUnit = TimeFrameUnits[mySpreadsheet.getRangeByName(NamedRanges.CURRENT_PERIOD_UNIT).getValue()] || 1;
+    const currentAndPastPeriodUnit = TimeFrameUnits[mySpreadsheet.getRangeByName(NamedRanges.CURRENT_PERIOD_UNIT).getValue()] || 1;
     const currentEndUnit = TimeFrameUnits[mySpreadsheet.getRangeByName(NamedRanges.CURRENT_END_UNIT).getValue()] || 1;
     const pastEndUnit = TimeFrameUnits[mySpreadsheet.getRangeByName(NamedRanges.PAST_END_UNIT).getValue()] || 1;
     for (let el in cadConfig.lookbackInUnits) {
@@ -893,7 +908,7 @@ class SheetUtils {
           cadConfig.lookbackInDays.current_ended_length_ago = 0;
 
           cadConfig.lookbackInDays.past_period_length =
-            parseFloat(cadConfig.lookbackInUnits.past_period_length) * currentAndPastLengthUnit;
+            parseFloat(cadConfig.lookbackInUnits.past_period_length) * currentAndPastPeriodUnit;
           cadConfig.lookbackInDays.past_ended_length_ago =
             (parseFloat(cadConfig.lookbackInUnits.past_ended_length_ago) * pastEndUnit);
 
@@ -923,11 +938,11 @@ class SheetUtils {
       case AVG_TYPE.AVG_TYPE_CUSTOM:
         {
           cadConfig.lookbackInDays.current_period_length =
-            parseFloat(cadConfig.lookbackInUnits.current_period_length) * currentAndPastLengthUnit;
+            parseFloat(cadConfig.lookbackInUnits.current_period_length) * currentAndPastPeriodUnit;
           cadConfig.lookbackInDays.current_ended_length_ago =
             (parseFloat(cadConfig.lookbackInUnits.current_ended_length_ago) * currentEndUnit);
           cadConfig.lookbackInDays.past_period_length =
-            parseFloat(cadConfig.lookbackInUnits.past_period_length) * currentAndPastLengthUnit;
+            parseFloat(cadConfig.lookbackInUnits.past_period_length) * currentAndPastPeriodUnit;
           cadConfig.lookbackInDays.past_ended_length_ago =
             (parseFloat(cadConfig.lookbackInUnits.past_ended_length_ago) * pastEndUnit);
 
