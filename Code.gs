@@ -7,8 +7,6 @@ const weekdays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Frida
  */
 class MetricResult {
   constructor() {
-    this.metricType = undefined;
-    this.isWriteToSheet = true;
     this.metricAlertDirection = undefined;
     this.past = 0;
     this.current = 0;
@@ -109,13 +107,13 @@ const MetricTypes = {
   roas_all: {
     email: 'ROAS all',
     isMonitored: true,
-    shouldBeRounded: true,
+    shouldBeRounded: false,
     isWriteToSheet: true
   },
   roas: {
     email: 'ROAS',
     isMonitored: true,
-    shouldBeRounded: true,
+    shouldBeRounded: false,
     isWriteToSheet: true
   },
 
@@ -133,6 +131,7 @@ const MetricTypes = {
     isFromGoogleAds: true,
     isWriteToSheet: true
   },
+
 
   search_click_share: {
     email: 'Search click share',
@@ -165,7 +164,7 @@ const MetricTypes = {
 };
 
 /**
- * An entity representation to monitor
+ * Comparison results of one entity to monitor
  */
 class CadSingleResult {
   constructor() {
@@ -176,18 +175,9 @@ class CadSingleResult {
     this.isTriggerAlert = false;
     this.allMetricsComparisons = {};
 
-    let currencyCode = AdsApp.currentAccount().getCurrencyCode();
+    let currencyCode =  AdsApp.currentAccount().getCurrencyCode();
     currencyCode = (currencyCode === 'USD') ? '$' : currencyCode;
     this.currencyCode = currencyCode + ' ';
-  }
-
-
-  fillZerosForMissingId(statMapForId, gAdsMetric) {
-    if (!statMapForId) {
-      statMapForId = {};
-      statMapForId[gAdsMetric] = 0;
-    }
-    return statMapForId;
   }
 
   /**
@@ -196,7 +186,7 @@ class CadSingleResult {
    * @param {string} id Entity id
    * @param {!Object} pastStats past stats map
    * @param {!Object} currentStats current stats map
-   * @param {!Object} cadConfig CAD config
+   * @param {!CadConfig} cadConfig CAD config
    */
   fillMetricResults(id, pastStats, currentStats, cadConfig) {
     // Columns
@@ -209,26 +199,26 @@ class CadSingleResult {
 
     for (let metric of monitoredMetrics) {
       let gAdsMetric = `metrics.${metric}`;
-      this.allMetricsComparisons[gAdsMetric] = {};
+      this.allMetricsComparisons[gAdsMetric] = new MetricResult();
       let comparisonResult = this.allMetricsComparisons[gAdsMetric];
 
-      currentStats[id] = this.fillZerosForMissingId(currentStats[id], gAdsMetric);
-      pastStats[id] = this.fillZerosForMissingId(pastStats[id], gAdsMetric);
+      currentStats[id] = (currentStats[id]) ? (currentStats[id]) : {};
+      pastStats[id] = (pastStats[id]) ? (pastStats[id]) : {};
 
 
       if (MetricTypes[metric].isMicro) {
         currentStats[id][gAdsMetric] /= 1e6;
-        pastStats[id][gAdsMetric] /= 1e6;
+        pastStats[id][gAdsMetric] = pastStats[id][gAdsMetric]? pastStats[id][gAdsMetric] /= 1e6: 0;
       }
       if (MetricTypes[metric].isCumulative) {
-        comparisonResult.past = (pastStats[id]) ? pastStats[id][gAdsMetric] /
+        comparisonResult.past = pastStats[id][gAdsMetric] ? pastStats[id][gAdsMetric] /
           cadConfig.dividePastBy :
           0;
         comparisonResult.current = currentStats[id][gAdsMetric] /
           cadConfig.divideCurrentBy;
 
       } else if (gAdsMetric.includes('roas_all')) {
-        comparisonResult.past = (pastStats[id]) ?
+        comparisonResult.past = pastStats[id][gAdsMetric] ?
           pastStats[id]['metrics.all_conversions_value'] /
           pastStats[id]['metrics.cost_micros'] :
           0;
@@ -237,7 +227,7 @@ class CadSingleResult {
           currentStats[id]['metrics.cost_micros'];
 
       } else if (gAdsMetric.includes('roas')) {
-        comparisonResult.past = (pastStats[id]) ?
+        comparisonResult.past = pastStats[id][gAdsMetric] ?
           pastStats[id]['metrics.conversions_value'] /
           pastStats[id]['metrics.cost_micros'] :
           0;
@@ -245,9 +235,9 @@ class CadSingleResult {
           currentStats[id]['metrics.cost_micros'];
       }
 
-      //after done with roas calculation.
+      //Only after done using conversions_value for roas calculation.
       else if (gAdsMetric.includes('conversions_value')) {
-        comparisonResult.past = (pastStats[id]) ? pastStats[id][gAdsMetric] /
+        comparisonResult.past = pastStats[id][gAdsMetric] ? pastStats[id][gAdsMetric] /
           cadConfig.dividePastBy :
           0;
         comparisonResult.current = currentStats[id][gAdsMetric] /
@@ -255,7 +245,7 @@ class CadSingleResult {
 
       }
       else {
-        comparisonResult.past = (pastStats[id]) ? pastStats[id][gAdsMetric] : 0;
+        comparisonResult.past = pastStats[id][gAdsMetric] ? pastStats[id][gAdsMetric] : 0;
         comparisonResult.current =
           (currentStats[id]) ? currentStats[id][gAdsMetric] : 0;
       }
@@ -277,10 +267,87 @@ class CadSingleResult {
           comparisonResult.metricAlertDirection = 'up';
         } else if (comparisonResult.isBelowLow) {
           comparisonResult.metricAlertDirection = 'down';
+        } else if (cadConfig.showOnlyAnomalies) {
+          comparisonResult.changeAbs = " - ";
+          comparisonResult.changePercent = " - ";
         }
       }
       this.isTriggerAlert = this.isTriggerAlert ||
         (comparisonResult.metricAlertDirection != undefined);
+    }
+  }
+
+
+  class MetricStrings{
+    constructor() {
+      this.currentValueStr = '';
+      this.pastAvgValueStr = '';
+      this.numericDeltaStr = '';
+      this.percentageDeltaStr = '';
+    }
+    constructor(currentValueStr, pastAvgValueStr, numericDeltaStr, percentageDeltaStr) {
+      this.currentValueStr = currentValueStr;
+      this.pastAvgValueStr = pastAvgValueStr;
+      this.numericDeltaStr = numericDeltaStr;
+      this.percentageDeltaStr = percentageDeltaStr;
+    }
+  }
+
+  /**
+   * Truncate decimal digits
+   */
+  truncateDecimalDigits() {
+    for (let metricType in this.allMetricsComparisons) {
+      let metricTypeName = metricType.split(".")[1];
+      if (!MetricTypes[metricTypeName].isWriteToSheet) continue;
+      if (!this.allMetricsComparisons[metricType].metricAlertDirection) continue;
+
+      let currentAvgValue = this.allMetricsComparisons[metricType].current;
+      let pastAvgValue = this.allMetricsComparisons[metricType].past;
+      let numericDelta = this.allMetricsComparisons[metricType].changeAbs;
+      let percentageDelta = this.allMetricsComparisons[metricType].changePercent;
+      let metricAlertDirection =
+        this.allMetricsComparisons[metricType].metricAlertDirection;
+
+      let metricStrings = new MetricStrings();
+
+      if (MetricTypes[metricTypeName].shouldBeRounded) {
+        metricStrings = this.toRoundedMetricString(
+          currentAvgValue, pastAvgValue, numericDelta, percentageDelta);
+      }
+      // A stat already avg for period
+      else if (
+        metricType.includes('cost_per_conversion') ||
+        metricType.includes('cost_micros')) {
+        metricStrings = this.toMetricStrings(
+          currentAvgValue, pastAvgValue, numericDelta, percentageDelta,
+          this.currencyCode + ' ', '', 2);
+      }
+      // A stat already avg for period
+      else if (
+        metricType.includes('ctr') ||
+        metricType.includes('roas')) {
+        metricStrings = this.toMetricStrings(
+          currentAvgValue, pastAvgValue, numericDelta, percentageDelta, '',
+          '%', 1);
+      }
+      // A stat already avg for period
+      else {
+        metricStrings = this.toMetricStrings(
+          currentAvgValue, pastAvgValue, numericDelta, percentageDelta, '',
+          '', 1);        
+      }
+
+      if (metricAlertDirection) {
+        metricStrings.percentageDeltaStr = metricAlertDirection.includes('up') ?
+          `⇪⇪ ${metricStrings.percentageDeltaStr}` :
+          `⇩⇩ ${metricStrings.percentageDeltaStr}`;
+      }      
+
+      this.allMetricsComparisons[metricType].current = metricStrings.currentValueStr;
+      this.allMetricsComparisons[metricType].past = metricStrings.pastAvgValueStr;
+      this.allMetricsComparisons[metricType].changeAbs = metricStrings.numericDeltaStr;
+      this.allMetricsComparisons[metricType].changePercent = metricStrings.percentageDeltaStr;
     }
   }
 
@@ -296,6 +363,7 @@ class CadSingleResult {
       (this.campaign.id) ? `: ${this.campaign.id} ${this.campaign.name}` : '';
     let alertTextForEntity = [
       `<br>Anomalies for: ${this.account.id} ${this.account.name} ${campaignHeader}
+      <br>(Only relevant metrics. For all metrics see the end of the email)
      <br><table style="width:50%;border:1px solid black;"><tr style="border:1px solid black;"><th style="text-align:left;border:1px solid black;">Metric</th><th style="text-align:left;border:1px solid black;">Current</th><th style="text-align:left;border:1px solid black;">Past</th> <th style="text-align:left;border:1px solid black;">Δ</th> <th style="text-align:left;border:1px solid black;">Δ%</th></tr>`
     ];
 
@@ -304,77 +372,11 @@ class CadSingleResult {
       if (!MetricTypes[metricType_name].isWriteToSheet) continue;
       if (!this.allMetricsComparisons[metricType].metricAlertDirection) continue;
 
-      let currentAvgValue = this.allMetricsComparisons[metricType].current;
-      let pastAvgValue = this.allMetricsComparisons[metricType].past;
-      let numericDelta = this.allMetricsComparisons[metricType].changeAbs;
-      let percentageDelta = this.allMetricsComparisons[metricType].changePercent;
-      let metricAlertDirection =
-        this.allMetricsComparisons[metricType].metricAlertDirection;
-
-      let currentValueStr = '';
-      let pastAvgValueStr = '';
-      let numericDeltaStr = '';
-      let percentageDeltaStr = '';
-
-      let metricTypeName = metricType.split('.')[1];
-      if (MetricTypes[metricTypeName].shouldBeRounded) {
-        const roundedMetric = this.toRoundedMetricString(
-          currentAvgValue, pastAvgValue, numericDelta, percentageDelta);
-        currentValueStr = roundedMetric.currentValueStr;
-        pastAvgValueStr = roundedMetric.pastAvgValueStr;
-        numericDeltaStr = roundedMetric.numericDeltaStr;
-        percentageDeltaStr = roundedMetric.percentageDeltaStr;
-
-      }
-      // A stat already avg for period
-      else if (
-        metricType.includes('cost_per_conversion') ||
-        metricType.includes('cost_micros')) {
-        const metricString = this.toMetricStrings(
-          currentAvgValue, pastAvgValue, numericDelta, percentageDelta,
-          this.currencyCode + ' ', '', 2);
-        currentValueStr = metricString.currentValueStr;
-        pastAvgValueStr = metricString.pastAvgValueStr;
-        numericDeltaStr = metricString.numericDeltaStr;
-        percentageDeltaStr = metricString.percentageDeltaStr;
-      }
-      // A stat already avg for period
-      else if (metricType.includes('ctr')) {
-        const __ret = this.toMetricStrings(
-          currentAvgValue, pastAvgValue, numericDelta, percentageDelta, '',
-          '%', 1);
-        currentValueStr = __ret.currentValueStr;
-        pastAvgValueStr = __ret.pastAvgValueStr;
-        numericDeltaStr = __ret.numericDeltaStr;
-        percentageDeltaStr = __ret.percentageDeltaStr;
-      }
-      // A stat already avg for period
-      else if (
-        metricType.includes('conversions_from_interactions_rate') ||
-        metricType.includes('search_click_share') ||
-        metricType.includes('video_view_rate') ||
-        metricType.includes('average_cpc') ||
-        metricType.includes('average_cpm') ||
-        metricType.includes('average_cpv')) {
-        const metricString = this.toMetricStrings(
-          currentAvgValue, pastAvgValue, numericDelta, percentageDelta, '',
-          '', 1);
-        currentValueStr = metricString.currentValueStr;
-        pastAvgValueStr = metricString.pastAvgValueStr;
-        numericDeltaStr = metricString.numericDeltaStr;
-        percentageDeltaStr = metricString.percentageDeltaStr;
-      }
-
       const toStringFormatter = ToStringFormatter.getInstance();
-      currentValueStr = toStringFormatter.addNumberCommas(currentValueStr);
-      pastAvgValueStr = toStringFormatter.addNumberCommas(pastAvgValueStr);
-      numericDeltaStr = toStringFormatter.addNumberCommas(numericDeltaStr);
-
-      if (metricAlertDirection) {
-        percentageDeltaStr = metricAlertDirection.includes('up') ?
-          `⇪⇪ ${percentageDeltaStr}` :
-          `⇩⇩ ${percentageDeltaStr}`;
-      }
+      const currentValueStr = toStringFormatter.addNumberCommas(this.allMetricsComparisons[metricType].current);
+      const pastAvgValueStr = toStringFormatter.addNumberCommas(this.allMetricsComparisons[metricType].past);
+      const numericDeltaStr = toStringFormatter.addNumberCommas(this.allMetricsComparisons[metricType].changeAbs);
+      const percentageDeltaStr = toStringFormatter.addNumberCommas(this.allMetricsComparisons[metricType].changePercent);
 
       alertTextForEntity.push(`<tr><td> ${metricType} </td><td> ${currentValueStr} </td><td> ${pastAvgValueStr} </td><td>
 ${numericDeltaStr} </td><td style="color: ${this.getDeltaColorPercentage(percentageDeltaStr)};"> ${percentageDeltaStr} </td></tr>`);
@@ -383,19 +385,16 @@ ${numericDeltaStr} </td><td style="color: ${this.getDeltaColorPercentage(percent
   };
 
 
-// Function to get the color based on positive/negative percentage values
- getDeltaColorPercentage(percentage) {
-    const numericPercentage = percentage.replace('⇪⇪ ', '').replace('%', '');
-
-    if (numericPercentage.includes("-")) {
-        return 'red';
-    } else if (numericPercentage.includes(" 0")) {
-        return 'black'; // If the value is zero
+  // Function to get the color based on positive/negative percentage values
+  getDeltaColorPercentage(percentage) {
+    if (percentage.includes("⇪")) {
+      return 'green';
+    } else if (percentage.includes("⇩")) {
+      return 'red'; // If the value is zero
     } else {
-        return 'green';
+      return 'white';
     }
-}
-
+  }
 
   /**
    * @param {number} currentAvgValue current value (avg)
@@ -404,13 +403,8 @@ ${numericDeltaStr} </td><td style="color: ${this.getDeltaColorPercentage(percent
    *@param {number} percentageDelta percentage delta
    *@return {!Object} a map of string formats
    */
-  toRoundedMetricString(
-    currentAvgValue, pastAvgValue, numericDelta, percentageDelta) {
-    return {
-      currentValueStr: Math.round(currentAvgValue),
-      pastAvgValueStr: Math.round(pastAvgValue),
-      numericDeltaStr: Math.round(numericDelta),
-      percentageDeltaStr: Math.round(percentageDelta) + '%'
+  toRoundedMetricString(currentAvgValue, pastAvgValue, numericDelta, percentageDelta) {
+    return new MetricStrings(Math.round(currentAvgValue), Math.round(pastAvgValue), Math.round(numericDelta),Math.round(percentageDelta) + '%')
     };
   }
 
@@ -467,41 +461,14 @@ ${numericDeltaStr} </td><td style="color: ${this.getDeltaColorPercentage(percent
       let metricName = metricType.split(".")[1];
       if (!MetricTypes[metricName].isMonitored) continue;
 
-      let currentAvgValue = this.allMetricsComparisons[metricType].current;
-      let pastAvgValue = this.allMetricsComparisons[metricType].past;
-      let numericDelta = this.allMetricsComparisons[metricType].changeAbs;
-      let percentageDelta = this.allMetricsComparisons[metricType].changePercent;
-      let metricAlertDirection =
-        this.allMetricsComparisons[metricType].metricAlertDirection;
-
-      let postfix = '';
-      if (metricType.includes('ctr')) {
-        postfix = '%';
-      }
-
       rowData = rowData.concat([
-        currentAvgValue + postfix, pastAvgValue + postfix,
-        numericDelta + postfix,
-        this.addTriggerDirectionSign(metricAlertDirection, percentageDelta)
+        this.allMetricsComparisons[metricType].current, this.allMetricsComparisons[metricType].past,
+        this.allMetricsComparisons[metricType].changeAbs,
+        this.allMetricsComparisons[metricType].changePercent
       ]);
     }
     return [rowData];
   };
-
-  /**
-   * Returns a string for a sheet format
-   *
-   * @param {string} metricAlertDirection is the alert for up/down anomaly
-   * @param {string} metricValue the metrics value
-   * @return {!Array<?>} a string for a sheet format
-   */
-  addTriggerDirectionSign(metricAlertDirection, metricValue) {
-    if (metricAlertDirection) {
-      metricValue = metricAlertDirection.includes('up') ? `⇪⇪ ${metricValue}` :
-        `⇩⇩ ${metricValue}`;
-    }
-    return metricValue;
-  }
 }
 
 /** ============= Cad Config ==================== */
@@ -518,6 +485,7 @@ class CadConfig {
     this.mcc = undefined;
     this.users = [];
     this.avgType = "Daily Avg";
+    this.showOnlyAnomalies = false;
 
     this.hourSegmentsWhereClause = { current: "", past: "" };
     this.hourSegmentInSelect = "";
@@ -555,7 +523,7 @@ class CadConfig {
       campaign_ids: "",
       campaign_excluded_ids: "",
       campaign_labels: "",
-      all_campaigns_for_accounts: ""
+      all_campaigns_for_accounts: []
     };
     // A map of "metric-type -> metric-thresholds"
     this.thresholds = {};
@@ -587,7 +555,10 @@ function main() {
   const cadConfig = sheetUtils.readInput();
 
   // process request
-  const cadResults = getResultsForAllRelevantEntitiesUnderMCC(cadConfig);
+  let cadResults = getResultsForAllRelevantEntitiesUnderMCC(cadConfig);
+  cadResults.forEach((item) => {
+    item.truncateDecimalDigits();
+  });
 
   // write to spreadsheet
   SheetUtils.getInstance().clearResults();
@@ -598,6 +569,7 @@ function main() {
   MailHandler.getInstance().sendEmail(cadConfig, cadResults);
 }
 
+
 /** ============= Sheet utils  ==================== */
 /**
  * @fileoverview Description of this file.
@@ -607,6 +579,7 @@ const NamedRanges = {
   RESULTS_SHEET_NAME: 'results',
   EMAILS: 'emails',
   MCC_ID: 'MCC_ID',
+  SHOW_ONLY_ANOMALIES: 'SHOW_ONLY_ANOMALIES',
 
   CURRENT_PERIOD_UNIT: 'current_period_unit',
   CURRENT_END_UNIT: 'current_end_unit',
@@ -622,7 +595,7 @@ const NamedRanges = {
   ENTITIY_IDS: "entity_ids",
   ENTITY_LABELS: "entity_labels",
   ENTITY_EXCLUDED_IDS: "entity_excluded_ids",
-  ALL_CAMPAIGNS_FOR_ACCOUNTS: "entity_excluded_ids",
+  ALL_CAMPAIGNS_FOR_ACCOUNTS: "all_campaigns_for_accounts",
 
   DATA_AGGREGATION: "data_aggregation",
 };
@@ -681,6 +654,8 @@ class TimeUtils {
     };
   }
 }
+
+// const timeUtils = new TimeUtils();
 
 /**
  * Input sheet representation
@@ -743,6 +718,7 @@ class SheetUtils {
     let cadConfig = new CadConfig();
     cadConfig.users = mySpreadsheet.getRangeByName(NamedRanges.EMAILS).getValue();
     cadConfig.avgType = mySpreadsheet.getRangeByName(NamedRanges.AVG_TYPE).getValue();
+    cadConfig.showOnlyAnomalies = mySpreadsheet.getRangeByName(NamedRanges.SHOW_ONLY_ANOMALIES).getValue();
 
     const lastQueryableHour = TimeUtils.getInstance().getLastQueryableHourMinusHours(0);
     cadConfig = this.fillLookbackDates(cadConfig);
@@ -767,7 +743,7 @@ class SheetUtils {
       cadConfig.campaigns.campaign_ids = entity_ids;
       cadConfig.campaigns.campaign_labels = entity_labels;
       cadConfig.campaigns.excluded_campaign_ids = entity_excluded_ids;
-      cadConfig.campaigns.all_campaigns_for_accounts = mySpreadsheet.getRangeByName(NamedRanges.ALL_CAMPAIGNS_FOR_ACCOUNTS).getValue();
+      cadConfig.campaigns.all_campaigns_for_accounts = SheetUtils.getInstance().toArray(mySpreadsheet.getRangeByName(NamedRanges.ALL_CAMPAIGNS_FOR_ACCOUNTS).getValue());
     }
 
     for (let metric of this.getMonitoredMetrics()) {
@@ -999,7 +975,7 @@ class SheetUtils {
 
   /**
    * write CAD results to results sheet
-   * @param {!CadResults} cadResults CAD results
+   * @param {Array<!CadSingleResult>s} cadResults CAD results
    */
   writeResults(cadResults) {
     const newStartingRow =
@@ -1230,7 +1206,7 @@ class GoogleAdsCampaignSelector {
     // Adding campaigns by labels
     if (campaignLabels && campaignLabels.length > 0) {
       selectCampaignQuery =
-        `SELECT campaign.id, campaign.name, label.name FROM campaign_label WHERE label.name IN ( ${campaignLabels}) ${excludedClause}`;
+        `SELECT campaign.id, campaign.name, label.name FROM campaign_label WHERE label.name IN (${campaignLabels}) ${excludedClause}`;
 
       if (CONFIG.is_debug_log) {
         Logger.log(`campaignLabels query = ${selectCampaignQuery}`);
@@ -1293,7 +1269,7 @@ function getGadsQueryFields() {
 /**
  * Get results for relevant entities under MCC
  * @param {!Object} cadConfig CAD user input.
- * @return {!Object} CAD monitoring results
+ * @return {Array<!CadSingleResult>} CAD monitoring results
  */
 function getResultsForAllRelevantEntitiesUnderMCC(cadConfig) {
   let mccAccount = AdsApp.currentAccount();
@@ -1322,7 +1298,7 @@ function getResultsForAllRelevantEntitiesUnderMCC(cadConfig) {
  * @param {!Object} gAdsAccountSelector Google ads account selector
  * @param {!Object} currentAccount The current account.
  * @param {!Object} cadConfig CAD user input.
- * @return {!Object} CAD monitoring results
+ * @return {Array<!CadSingleResult>} CAD monitoring results
  */
 function getResultsForRelevantEntitiesUnderAccount(gAdsAccountSelector, currentAccount, cadConfig) {
   let cadResults = [];
@@ -1378,29 +1354,17 @@ function aggAccountReportToCadResults(gAdsAccountSelector, currentAccount, cadCo
   ${cadConfig.hourSegmentsWhereClause.current}`;
   let pastQuery = `${baseQuery} "${cadConfig.lookbackDates.past_range_start_date.query_date}" AND "${cadConfig.lookbackDates.past_range_end_date.query_date}" ${cadConfig.hourSegmentsWhereClause.past}`;
 
-  if (CONFIG.is_debug_log) {
-    Logger.log(
-      'currentQuery accounts= ' +
-      JSON.stringify(currentQuery));
-    Logger.log(
-      'pastQuery accounts= ' +
-      JSON.stringify(pastQuery));
-  }
-
-
   let currentStats = storeReportByEntityId(
     AdsApp.report(currentQuery, CONFIG.reporting_options), cadConfig);
+
   let pastStats =
     storeReportByEntityId(AdsApp.report(pastQuery, CONFIG.reporting_options), cadConfig);
 
-
   if (CONFIG.is_debug_log) {
-    Logger.log(
-      'currentStats accounts= ' +
-      JSON.stringify(currentStats));
-    Logger.log(
-      'pastStats accounts= ' +
-      JSON.stringify(pastStats));
+    Logger.log('currentStats accounts= ' + JSON.stringify(currentStats));
+    Logger.log('currentQuery accounts= ' + JSON.stringify(currentQuery));
+    Logger.log('pastQuery accounts= ' + JSON.stringify(pastQuery));
+    Logger.log('pastStats accounts= ' + JSON.stringify(pastStats));
   }
 
   // single Row
@@ -1478,7 +1442,7 @@ function isCurrentAccountSatisfyCadConfig(
  * campaign report to cad monitoring results
  * @param {!Object} campaignIdToLabelForCurrentAccount The current account.
  * @param {!Object} cadConfig CAD user input.
- * @return {!Object} CAD monitoring results
+ * @return {Array<!CadSingleResult>} CAD monitoring results
  */
 function campaignReportToCadResults(
   campaignIdToLabelForCurrentAccount, cadConfig) {
@@ -1494,9 +1458,6 @@ function campaignReportToCadResults(
   if (CONFIG.is_debug_log) {
     Logger.log(`Reporting for campaign ids = ${JSON.stringify(campaignIds)}`);
   }
-
-
-
 
   // We expect current searchResults to contain DISABLED campaigns as well
   // thus > past results
@@ -1597,7 +1558,10 @@ function sumRows(row1, row2) {
     if (row1.hasOwnProperty(key) && row2.hasOwnProperty(key)) {
       var val1 = row1[key];
       var val2 = row2[key];
-      if (isNumber(val1) && isNumber(val2)) {
+      if (key.toLocaleLowerCase().includes("id") || key.toLocaleLowerCase().includes("name")) {
+        result[key] = val1;
+      }
+      else if (isNumber(val1) && isNumber(val2)) {
         result[key] = Number(val1) + Number(val2);
       } else if (typeof val1 === 'string' || typeof val2 === 'string') {
         result[key] = 'cannot sum string values';
@@ -1669,8 +1633,8 @@ class MailHandler {
           <br><br>
           ${bodyText}
           <br><br>
-          Log into Google Ads and take a look:
-          notifications dashboard:  ${CONFIG.spreadsheet_url}`
+          Log into Google Ads and take a look.
+          Notifications dashboard and full results:  ${CONFIG.spreadsheet_url}`
     });
     Logger.log('Email sent');
   }
@@ -1744,6 +1708,7 @@ class ToStringFormatter {
    * @return {string} A string representation with a thousands comma.
    */
   addNumberCommas(num) {
+    if (isNaN(num)) return num;
     let str = num.toString().split('.');
     str[0] = str[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
     return str.join('.');
