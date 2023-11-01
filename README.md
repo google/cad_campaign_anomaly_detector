@@ -4,7 +4,8 @@ A simple ad script solution that monitors accounts and campaigns for anomalies i
 An `anomaly` is a significant increase/decrease between past and current time lengths. 
 CAD can be scheduled to run recurringly and automatically. It will send the users emails when anomalies are caught.
 
-[User guide](https://docs.google.com/document/d/1PZZcCjLrg70d5Kj0Mr87ARAk2Q0dPook8950Fna6cSk/edit#heading=h.vgol1uz8ixf6)
+The [user guide](https://docs.google.com/document/d/1PZZcCjLrg70d5Kj0Mr87ARAk2Q0dPook8950Fna6cSk/edit#heading=h.vgol1uz8ixf6) contains the link to the latest spreadsheet to use!
+
 
 </br>
 
@@ -42,7 +43,8 @@ The solution is comprised of:
 
 ## CAD v2 (August 2023)
 * Tutorial [video](http://screencast/cast/NDk1MzY4MTcyOTQyMTMxMnwyODY2NTllOS02MQ)
-* Copy this [spreadsheet](https://docs.google.com/spreadsheets/d/1CdglmgBla6fyYfopxaQE2Uac7Z-1o9BAhx35ixxgu48/copy).
+* Copy the spreadsheet from within the [user guide](https://docs.google.com/document/d/1PZZcCjLrg70d5Kj0Mr87ARAk2Q0dPook8950Fna6cSk/edit#heading=h.320s0cab7juu).
+
 </br>
 
 #### Features
