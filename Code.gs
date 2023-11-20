@@ -1,4 +1,50 @@
 const weekdays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const CONSTS =  {
+  ALL: 'ALL',
+}
+
+
+const NamedRanges = {
+  RESULTS_SHEET_NAME: 'results',
+  EMAILS: 'emails',
+  MCC_ID: 'MCC_ID',
+  SHOW_ONLY_ANOMALIES: 'SHOW_ONLY_ANOMALIES',
+
+  CURRENT_PERIOD_UNIT: 'current_period_unit',
+  CURRENT_END_UNIT: 'current_end_unit',
+
+  PAST_END_UNIT: 'past_end_unit',
+
+  AVG_TYPE: 'AVG_TYPE',
+  AVG_TYPE_ERROR: 'AVG_TYPE_ERROR',
+  RESULTS_CURRENT_RANGE_DATES: 'results_current_range_dates',
+  RESULTS_PAST_RANGE_DATES: 'results_past_range_dates',
+  FIRST_DATA_ROW: 7,
+  FIRST_DATA_COLUMN: 1,
+  ENTITIY_IDS: "entity_ids",
+  ENTITY_LABELS: "entity_labels",
+  ENTITY_EXCLUDED_IDS: "entity_excluded_ids",
+  ALL_CAMPAIGNS_FOR_ACCOUNTS: "all_campaigns_for_accounts",
+
+  DATA_AGGREGATION: "data_aggregation",
+};
+
+const AVG_TYPE = {
+  AVG_TYPE_DAILY_WEEKDAYS: "Daily Avg. Same Weekday as today ---> (Today) vs. (a few instances from past weeks)----> both: midnight till last data hour.",
+  AVG_TYPE_DAILY_TODAY_VS_YESTERDAY: "Daily Avg. (Today) vs. (Yesterday)  -----> both: midnight till last data hour.",
+  AVG_TYPE_HOURLY_TODAY: "Hourly Avg. Inside Today ------> (Last data hour) vs. (midnight till that hour)",
+  AVG_TYPE_DAILY: "Daily Avg. Full days.",
+  AVG_TYPE_WEEKLY: "Weekly (last 7 days) Avg",
+  AVG_TYPE_CUSTOM: "Custom"
+};
+
+
+const TimeFrameUnits = {
+  'Days': 1,
+  'Weeks': 7
+};
+
+
 
 /** ============= Cad Result ==================== */
 /**
@@ -257,12 +303,13 @@ class CadSingleResult {
       comparisonResult.changeAbs = comparisonResult.current - comparisonResult.past;
       comparisonResult.changePercent = (comparisonResult.current / comparisonResult.past) * 100 - 100;
       comparisonResult.isAboveHigh =
-        comparisonResult.changePercent >= cadConfig.thresholds[`${metric}_high`] * 100;
+      (cadConfig.thresholds[`${metric}_high`] > 0) && (comparisonResult.changePercent >= cadConfig.thresholds[`${metric}_high`] * 100);
+
       comparisonResult.isBelowLow =
-        comparisonResult.changePercent <= cadConfig.thresholds[`${metric}_low`] * 100;
+      (cadConfig.thresholds[`${metric}_low`] < 0) && comparisonResult.changePercent <= cadConfig.thresholds[`${metric}_low`] * 100;
 
       let ignoreAbs = cadConfig.thresholds[`${metric}_ignore`];
-      if (!ignoreAbs || Math.abs(comparisonResult.changeAbs) >= ignoreAbs) {
+      if (!ignoreAbs || comparisonResult.past >= ignoreAbs) {
         if (comparisonResult.isAboveHigh) {
           comparisonResult.metricAlertDirection = 'up';
         } else if (comparisonResult.isBelowLow) {
@@ -274,22 +321,6 @@ class CadSingleResult {
       }
       this.isTriggerAlert = this.isTriggerAlert ||
         (comparisonResult.metricAlertDirection != undefined);
-    }
-  }
-
-
-  class MetricStrings{
-    constructor() {
-      this.currentValueStr = '';
-      this.pastAvgValueStr = '';
-      this.numericDeltaStr = '';
-      this.percentageDeltaStr = '';
-    }
-    constructor(currentValueStr, pastAvgValueStr, numericDeltaStr, percentageDeltaStr) {
-      this.currentValueStr = currentValueStr;
-      this.pastAvgValueStr = pastAvgValueStr;
-      this.numericDeltaStr = numericDeltaStr;
-      this.percentageDeltaStr = percentageDeltaStr;
     }
   }
 
@@ -335,14 +366,14 @@ class CadSingleResult {
       else {
         metricStrings = this.toMetricStrings(
           currentAvgValue, pastAvgValue, numericDelta, percentageDelta, '',
-          '', 1);        
+          '', 1);
       }
 
       if (metricAlertDirection) {
         metricStrings.percentageDeltaStr = metricAlertDirection.includes('up') ?
           `⇪⇪ ${metricStrings.percentageDeltaStr}` :
           `⇩⇩ ${metricStrings.percentageDeltaStr}`;
-      }      
+      }
 
       this.allMetricsComparisons[metricType].current = metricStrings.currentValueStr;
       this.allMetricsComparisons[metricType].past = metricStrings.pastAvgValueStr;
@@ -396,6 +427,8 @@ ${numericDeltaStr} </td><td style="color: ${this.getDeltaColorPercentage(percent
     }
   }
 
+
+
   /**
    * @param {number} currentAvgValue current value (avg)
    * @param {number} pastAvgValue  past value (avg)
@@ -406,8 +439,6 @@ ${numericDeltaStr} </td><td style="color: ${this.getDeltaColorPercentage(percent
   toRoundedMetricString(currentAvgValue, pastAvgValue, numericDelta, percentageDelta) {
     return new MetricStrings(Math.round(currentAvgValue), Math.round(pastAvgValue), Math.round(numericDelta),Math.round(percentageDelta) + '%')
     };
-  }
-
 
   /**
    * @param {number} currentAvgValue current value (avg)
@@ -469,6 +500,23 @@ ${numericDeltaStr} </td><td style="color: ${this.getDeltaColorPercentage(percent
     }
     return [rowData];
   };
+}
+
+/**
+ * Metric strings
+ */
+class MetricStrings {
+  constructor(
+    currentValueStr = '',
+    pastAvgValueStr = '',
+    numericDeltaStr = '',
+    percentageDeltaStr = ''
+  ) {
+    this.currentValueStr = currentValueStr;
+    this.pastAvgValueStr = pastAvgValueStr;
+    this.numericDeltaStr = numericDeltaStr;
+    this.percentageDeltaStr = percentageDeltaStr;
+  }
 }
 
 /** ============= Cad Config ==================== */
@@ -575,47 +623,6 @@ function main() {
  * @fileoverview Description of this file.
  */
 
-const NamedRanges = {
-  RESULTS_SHEET_NAME: 'results',
-  EMAILS: 'emails',
-  MCC_ID: 'MCC_ID',
-  SHOW_ONLY_ANOMALIES: 'SHOW_ONLY_ANOMALIES',
-
-  CURRENT_PERIOD_UNIT: 'current_period_unit',
-  CURRENT_END_UNIT: 'current_end_unit',
-
-  PAST_END_UNIT: 'past_end_unit',
-
-  AVG_TYPE: 'AVG_TYPE',
-  AVG_TYPE_ERROR: 'AVG_TYPE_ERROR',
-  RESULTS_CURRENT_RANGE_DATES: 'results_current_range_dates',
-  RESULTS_PAST_RANGE_DATES: 'results_past_range_dates',
-  FIRST_DATA_ROW: 7,
-  FIRST_DATA_COLUMN: 1,
-  ENTITIY_IDS: "entity_ids",
-  ENTITY_LABELS: "entity_labels",
-  ENTITY_EXCLUDED_IDS: "entity_excluded_ids",
-  ALL_CAMPAIGNS_FOR_ACCOUNTS: "all_campaigns_for_accounts",
-
-  DATA_AGGREGATION: "data_aggregation",
-};
-
-const AVG_TYPE = {
-  AVG_TYPE_DAILY_WEEKDAYS: "Daily Avg. Same Weekday as today ---> (Today) vs. (a few instances from past weeks)----> both: midnight till last data hour.",
-  AVG_TYPE_DAILY_TODAY_VS_YESTERDAY: "Daily Avg. (Today) vs. (Yesterday)  -----> both: midnight till last data hour.",
-  AVG_TYPE_HOURLY_TODAY: "Hourly Avg. Inside Today ------> (Last data hour) vs. (midnight till that hout)",
-  AVG_TYPE_DAILY: "Daily Avg. Full days.",
-  AVG_TYPE_WEEKLY: "Weekly (last 7 days) Avg",
-  AVG_TYPE_CUSTOM: "Custom"
-};
-
-
-const TimeFrameUnits = {
-  'Days': 1,
-  'Weeks': 7
-};
-
-
 /**
  * Time utils methods
  */
@@ -642,20 +649,18 @@ class TimeUtils {
    */
   getLastQueryableHourMinusHours(minusHours) {
     const NOW = new Date();
-    const past = new Date(NOW.getTime() - (this.HOURS_BACK + minusHours) * 3600 * 1000);
-    const pastHourStr = Utilities.formatDate(past, this.TIMEZONE, 'HH');
+    const lastQueryableDate = new Date(NOW.getTime() - (this.HOURS_BACK + minusHours) * 3600 * 1000);
+    const pastHourStr = lastQueryableDate.getHours().toString(); 
     return {
       hourInt: parseInt(pastHourStr, 10),
-      query_date: ToStringFormatter.getInstance().getDateStringInTimeZone(past, 'yyyy-MM-dd'),
-      sheet_date: ToStringFormatter.getInstance().getDateStringInTimeZone(past, 'dd/MM/YY'),
-      weekday: `AND segments.day_of_week = '${weekdays[past.getDay()].toUpperCase()}'`,
+      query_date: ToStringFormatter.getInstance().getDateStringInTimeZone(lastQueryableDate, 'yyyy-MM-dd'),
+      sheet_date: ToStringFormatter.getInstance().getDateStringInTimeZone(lastQueryableDate, 'dd/MM/YY'),
+      weekday: `AND segments.day_of_week = '${weekdays[lastQueryableDate.getDay()].toUpperCase()}'`,
       hourWhereClauseEqual: `AND segments.hour = ${pastHourStr}`,
       hourWhereClauseSmaller: `AND segments.hour < ${pastHourStr}`
     };
   }
 }
-
-// const timeUtils = new TimeUtils();
 
 /**
  * Input sheet representation
@@ -798,7 +803,7 @@ class SheetUtils {
       case AVG_TYPE.AVG_TYPE_DAILY_WEEKDAYS:
         {
           cadConfig.divideCurrentBy = 1;
-          cadConfig.dividePastBy = cadConfig.lookbackInUnits.past_period_length;
+          cadConfig.dividePastBy = cadConfig.lookbackInUnits.past_period_length / 7;
           break;
         }
       case AVG_TYPE.AVG_TYPE_DAILY_TODAY_VS_YESTERDAY:
@@ -1110,7 +1115,7 @@ class GoogleAdsAccountSelector {
       return this.getAllSubAccounts();
     }
     if (cadConfig.accounts.account_ids.length > 0) {
-      if (cadConfig.accounts.account_ids[0].toUpperCase() == 'ALL') {
+      if (cadConfig.accounts.account_ids[0].toUpperCase() == CONSTS.ALL) {
         return this.getAllSubAccounts();
       } else {
         Object.assign(accountsObjects, this.getAccountObjectsForIds(cadConfig.accounts.account_ids));
@@ -1431,7 +1436,7 @@ function isCurrentAccountSatisfyCadConfig(
 
   return (
     (aggAccountIdList.length > 0 &&
-      aggAccountIdList[0].toUpperCase() === 'ALL') ||
+      aggAccountIdList[0].toUpperCase() === CONSTS.ALL) ||
 
     aggAccountIdList.includes(currentAccountId) ||
 
