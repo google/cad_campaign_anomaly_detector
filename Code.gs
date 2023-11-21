@@ -655,7 +655,7 @@ class TimeUtils {
       hourInt: parseInt(pastHourStr, 10),
       query_date: ToStringFormatter.getInstance().getDateStringInTimeZone(lastQueryableDate, 'yyyy-MM-dd'),
       sheet_date: ToStringFormatter.getInstance().getDateStringInTimeZone(lastQueryableDate, 'dd/MM/YY'),
-      weekday: `AND segments.day_of_week = '${weekdays[lastQueryableDate.getDay()].toUpperCase()}'`,
+      weekday: `AND segments.day_of_week = '${weekdays[lastQueryableDate.getUTCDay()].toUpperCase()}'`,
       hourWhereClauseEqual: `AND segments.hour = ${pastHourStr}`,
       hourWhereClauseSmaller: `AND segments.hour < ${pastHourStr}`
     };
