@@ -345,15 +345,20 @@ safeDevide(mapName, nomenator, denomenator) {
     }
   }
 
-
   /**
    * Truncate decimal digits
    */
   truncateDecimalDigits() {
     for (let metricType in this.allMetricsComparisons) {
       let metricTypeName = metricType.split(".")[1];
-      if (!MetricTypes[metricTypeName].isWriteToSheet) continue;
-      if (!this.allMetricsComparisons[metricType].metricAlertDirection) continue;
+
+      if (!this.allMetricsComparisons[metricType]){
+        if (metricType.includes('search_click_share')){ //expected to be missing for account level
+          continue;
+        }
+         throw new Error(`Missing value: Property name does not contain ${metricType}`);
+      }
+      
 
       let currentAvgValue = this.allMetricsComparisons[metricType].current;
       let pastAvgValue = this.allMetricsComparisons[metricType].past;
@@ -368,15 +373,13 @@ safeDevide(mapName, nomenator, denomenator) {
         metricStrings = this.toRoundedMetricString(
           currentAvgValue, pastAvgValue, numericDelta, percentageDelta);
       }
-      // A stat already avg for period
       else if (
         metricType.includes('cost_per_conversion') ||
         metricType.includes('cost_micros')) {
         metricStrings = this.toMetricStrings(
           currentAvgValue, pastAvgValue, numericDelta, percentageDelta,
           this.currencyCode + ' ', '', 2);
-      }
-      // A stat already avg for period
+      }      
       else if (
         metricType.includes('ctr') ||
         metricType.includes('roas')) {
@@ -384,7 +387,6 @@ safeDevide(mapName, nomenator, denomenator) {
           currentAvgValue, pastAvgValue, numericDelta, percentageDelta, '',
           '%', 1);
       }
-      // A stat already avg for period
       else {
         metricStrings = this.toMetricStrings(
           currentAvgValue, pastAvgValue, numericDelta, percentageDelta, '',
@@ -402,7 +404,7 @@ safeDevide(mapName, nomenator, denomenator) {
       this.allMetricsComparisons[metricType].changeAbs = metricStrings.numericDeltaStr;
       this.allMetricsComparisons[metricType].changePercent = metricStrings.percentageDeltaStr;
     }
-  }
+   }
 
   /**
    * Returns a string for an email format
@@ -1457,7 +1459,7 @@ function aggAccountReportToCadResults(gAdsAccountSelector, currentAccount, cadCo
   const relevantLabelsForCurrentAccount =
     gAdsAccountSelector.getRelevantLabelsForAccount(currentAccount, cadConfig);
 
-  // Does currently scanned account satisfy any id selector?
+  // Does currently scanned account satisfy any id selector
   if (!isCurrentAccountSatisfyCadConfig(
     currentAccount, cadConfig, relevantLabelsForCurrentAccount)) {
     return cadResults;
@@ -1633,7 +1635,7 @@ function campaignReportToCadResults(
       currentStats[campaignId]['customer.descriptive_name'];
     cadSingleResult.campaign.id = currentStats[campaignId]['campaign.id'];
     cadSingleResult.campaign.name = currentStats[campaignId]['campaign.name'];
-    cadSingleResult.fillMetricResults(id, pastStats, currentStats, cadConfig);
+    cadSingleResult.fillMetricResults(campaignId, pastStats, currentStats, cadConfig);
     if (cadSingleResult.isTriggerAlert) {
       cadResults.push(cadSingleResult);
     }
