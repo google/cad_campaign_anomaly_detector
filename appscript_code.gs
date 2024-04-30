@@ -1,5 +1,5 @@
 const appScriptConsts = {
-  "AVG_TYPE_DROPDOWN": "AVG_TYPE",
+  "AVG_TYPE_DROPDOWN": "AVG_TYPE_DROPDOWN",
 
   "AVG_WEEKDAY_PAST": "AVG_WEEKDAY_PAST",
 
@@ -66,46 +66,19 @@ function onEdit(e) {
   var column = range.getColumn();
   var value = range.getValue();
 
-  if (!appScriptNamedRange.isInit) {
-    appScriptNamedRange = initNamedRanges();
-  }
-
   toggleAggregationVisibility(column, row, value);
   togglePeriodsVisibility(column, row, value);
   toggleMetricTableRowsVisibility(column, row, value);
   setCustomDates(column, row, value);
 }
 
-function initNamedRanges(){
-  return {
-      isInit: true,
-      current_period_length: spreadSheet.getRangeByName(appScriptConsts.CURRENT_PERIOD_LENGTH),
-      current_period_unit: spreadSheet.getRangeByName(appScriptConsts.CURRENT_PERIOD_UNIT),
-      current_ended_length_ago: spreadSheet.getRangeByName(appScriptConsts.CURRENT_ENDED_LENGTH_AGO),
-      current_end_unit: spreadSheet.getRangeByName(appScriptConsts.CURRENT_END_UNIT),
-      past_period_length: spreadSheet.getRangeByName(appScriptConsts.PAST_PERIOD_LENGTH),
-      past_period_unit: spreadSheet.getRangeByName(appScriptConsts.PAST_PERIOD_UNIT),
-      past_ended_length_ago: spreadSheet.getRangeByName(appScriptConsts.PAST_ENDED_LENGTH_AGO),
-      past_end_unit: spreadSheet.getRangeByName(appScriptConsts.PAST_END_UNIT),
-      avg_type_dropdown: spreadSheet.getRangeByName(appScriptConsts.AVG_TYPE_DROPDOWN),
-      avg_weekday_past: spreadSheet.getRangeByName(appScriptConsts.AVG_WEEKDAY_PAST),
-      avg_weekly_current: spreadSheet.getRangeByName(appScriptConsts.AVG_WEEKLY_CURRENT),
-      avg_daily_current: spreadSheet.getRangeByName(appScriptConsts.AVG_DAILY_CURRENT),
-      avg_daily_past: spreadSheet.getRangeByName(appScriptConsts.AVG_DAILY_PAST),
-      avg_weekly_past: spreadSheet.getRangeByName(appScriptConsts.AVG_WEEKLY_PAST),
-      today_vs_yes: spreadSheet.getRangeByName(appScriptConsts.AVG_TODAY_VS_YESTERDAY),
-      last_hour_vs_before: spreadSheet.getRangeByName(appScriptConsts.AVG_LAST_HOUR_VS_BEFORE),
-      data_aggregation: spreadSheet.getRangeByName(appScriptConsts.DATA_AGGREGATION),
-      all_campaign_for_accounts : spreadSheet.getRangeByName(appScriptConsts.ALL_CAMPAIGN_FOR_ACCOUNTS)
-    }
-}
 
 function togglePeriodsVisibility(column, row, value) {
   const avgWeekdayPast = appScriptNamedRange.avg_weekday_past;
   const todayVsYesterday = appScriptNamedRange.today_vs_yes;
-  const avg_type_dropdown = appScriptNamedRange.avg_type_dropdown;
+  const avgTypeDropdown = appScriptNamedRange.avg_type_dropdown;
 
-  if ((column == avg_type_dropdown.getColumn()) && (row == avg_type_dropdown.getRow())) {
+  if ((column == avgTypeDropdown.getColumn()) && (row == avgTypeDropdown.getRow())) {
     switch (value) {
       case AVG_TYPE.AVG_TYPE_HOURLY_TODAY:
         {
@@ -117,7 +90,7 @@ function togglePeriodsVisibility(column, row, value) {
         }
       case AVG_TYPE.AVG_TYPE_DAILY_TODAY_VS_YESTERDAY:
         {
-          sheet.hideRows(appScriptNamedRange.avg_weekday_past.getRow() - 1, 6);
+          sheet.hideRows(avgWeekdayPast.getRow() - 1, 6);
           sheet.showRows(todayVsYesterday.getRow(), 2);
           sheet.hideRows(appScriptNamedRange.last_hour_vs_before.getRow(), 2);
 
@@ -126,8 +99,8 @@ function togglePeriodsVisibility(column, row, value) {
         }
       case AVG_TYPE.AVG_TYPE_DAILY_WEEKDAYS:
         {
-          sheet.showRows(appScriptNamedRange.avg_weekday_past.getRow() - 1, 2);
-          appScriptNamedRange.avg_weekday_past.setValue("0");
+          sheet.showRows(avgWeekdayPast.getRow() - 1, 2);
+          avgWeekdayPast.setValue("0");
           sheet.hideRows(appScriptNamedRange.avg_daily_current.getRow(), 8);
 
           sheet.hideRows(appScriptNamedRange.current_period_length.getRow(), 9);
@@ -135,7 +108,7 @@ function togglePeriodsVisibility(column, row, value) {
         }
       case AVG_TYPE.AVG_TYPE_DAILY:
         {
-          sheet.hideRows(appScriptNamedRange.avg_weekday_past.getRow() - 1, 2);
+          sheet.hideRows(avgWeekdayPast.getRow() - 1, 2);
           sheet.showRows(appScriptNamedRange.avg_daily_current.getRow(), 2);
           appScriptNamedRange.avg_daily_current.setValue("0");
           appScriptNamedRange.avg_daily_past.setValue("0");
@@ -146,18 +119,18 @@ function togglePeriodsVisibility(column, row, value) {
         }
       case AVG_TYPE.AVG_TYPE_WEEKLY:
         {
-          sheet.hideRows(appScriptNamedRange.avg_weekday_past.getRow() - 1, 4);
+          sheet.hideRows(avgWeekdayPast.getRow() - 1, 4);
           sheet.showRows(appScriptNamedRange.avg_weekly_current.getRow(), 2);
           appScriptNamedRange.avg_weekly_current.setValue("0");
           appScriptNamedRange.avg_weekly_past.setValue("0");
-          sheet.hideRows(appScriptNamedRange.today_vs_yes.getRow(), 4);
+          sheet.hideRows(todayVsYesterday.getRow(), 4);
 
           sheet.hideRows(current_period_length.getRow(), 9);
           break;
         }
       case AVG_TYPE.AVG_TYPE_CUSTOM:
         {
-          sheet.hideRows(appScriptNamedRange.avg_weekday_past.getRow() - 1, 10);
+          sheet.hideRows(avgWeekdayPast.getRow() - 1, 10);
 
           sheet.showRows(appScriptNamedRange.current_period_length.getRow(), 9);
           break;
@@ -294,7 +267,7 @@ function setCustomDates(column, row, value) {
     appScriptNamedRange.current_ended_length_ago.setValue(1);
     appScriptNamedRange.current_end_unit.setValue("Days");
 
-    appScriptNamedRange.past_ended_length_ago.setValue(Number(value));
+    appScriptNamedRange.past_ended_length_ago.setValue(Number(value + 1));
     appScriptNamedRange.past_end_unit.setValue("Days");
   }
   else if ((column == appScriptNamedRange.avg_daily_past.getColumn()) && (row == appScriptNamedRange.avg_daily_past.getRow())) {
@@ -321,4 +294,3 @@ function setCustomDates(column, row, value) {
     appScriptNamedRange.past_period_unit.setValue("Weeks");
   }
 }
-
