@@ -870,7 +870,7 @@ class SheetUtils {
 
     const lastQueryableHour =
       TimeUtils.getInstance().getLastQueryableHourMinusHours(0);
-    cadConfig = this.fillLookbackDates(cadConfig);
+    cadConfig = this.fillLookbackDatesForTextNotForDivision(cadConfig);
 
     console.log(`cadConfig.avgType ==== ${JSON.stringify(cadConfig.avgType)}`);
 
@@ -1001,17 +1001,20 @@ class SheetUtils {
 
   setDivideBy(cadConfig) {
     switch (cadConfig.avgType) {
+      //Daily avg - sum hours, but no need to divide by #hours
       case AVG_TYPE.AVG_TYPE_DAILY_WEEKDAYS: {
         cadConfig.divideCurrentBy = 1;
         cadConfig.dividePastBy =
           cadConfig.lookbackInUnits.past_period_length / 7;
         break;
       }
+      //Daily avg - sum hours, but no need to divide by #hours
       case AVG_TYPE.AVG_TYPE_DAILY_TODAY_VS_YESTERDAY: {
         cadConfig.divideCurrentBy = 1;
         cadConfig.dividePastBy = 1;
         break;
       }
+      //Divide by # hours - hourly avg
       case AVG_TYPE.AVG_TYPE_HOURLY_TODAY: {
         cadConfig.divideCurrentBy = 1;
 
@@ -1033,7 +1036,7 @@ class SheetUtils {
     return cadConfig;
   }
 
-  fillLookbackDates(cadConfig) {
+  fillLookbackDatesForTextNotForDivision(cadConfig) {
     const mySpreadsheet = this.mySpreadsheet;
     const lastQueryableHour =
       TimeUtils.getInstance().getLastQueryableHourMinusHours(0);
@@ -1086,9 +1089,17 @@ class SheetUtils {
           beforeLastQueryableHour
         );
 
-        cadConfig.lookbackInDays.current_period_length = "partial 1";
+        cadConfig.lookbackInDays.current_period_length =
+          `${beforeLastQueryableHour.hourWhereClauseEqual} for partial 1`.replace(
+            'AND ',
+            ''
+          );
         cadConfig.lookbackInDays.current_ended_length_ago = 0;
-        cadConfig.lookbackInDays.past_period_length = "partial 1";
+        cadConfig.lookbackInDays.past_period_length =
+          `${beforeLastQueryableHour.hourWhereClauseSmaller} for partial 1`.replace(
+            'AND ',
+            ''
+          );
         cadConfig.lookbackInDays.past_ended_length_ago = 0;
         break;
       }
@@ -1105,14 +1116,26 @@ class SheetUtils {
           beforeLastQueryableHour
         );
 
-        cadConfig.lookbackInDays.current_period_length = "partial 1";
+        cadConfig.lookbackInDays.current_period_length =
+          `${beforeLastQueryableHour.hourWhereClauseSmaller} for partial 1`.replace(
+            'AND ',
+            ''
+          );
         cadConfig.lookbackInDays.current_ended_length_ago = 0;
-        cadConfig.lookbackInDays.past_period_length = "partial 1";
+        cadConfig.lookbackInDays.past_period_length =
+          `${beforeLastQueryableHour.hourWhereClauseSmaller} for partial 1`.replace(
+            'AND ',
+            ''
+          );
         cadConfig.lookbackInDays.past_ended_length_ago = 1;
         break;
       }
       case AVG_TYPE.AVG_TYPE_DAILY_WEEKDAYS: {
-        cadConfig.lookbackInDays.current_period_length = 1;
+        cadConfig.lookbackInDays.current_period_length =
+          `${beforeLastQueryableHour.hourWhereClauseSmaller} for partial 1`.replace(
+            'AND ',
+            ''
+          );
         cadConfig.lookbackInDays.current_ended_length_ago = 0;
 
         cadConfig.lookbackInDays.past_period_length =
