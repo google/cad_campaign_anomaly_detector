@@ -1,4 +1,4 @@
-//30-April-2024
+//2-May-2024
 
 const LOG_PAST_DEVIDER = "==========past===========";
 
@@ -1751,7 +1751,7 @@ function aggAccountReportToCadResults(
   }
 
   // single Row
-  for (id of currentStats) {
+  for (id in currentStats) {
     let cadSingleResult = new CadSingleResult();
     cadSingleResult.relevant_label = relevantLabelsForCurrentAccount;
 
