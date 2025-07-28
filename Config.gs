@@ -18,7 +18,7 @@
 const CONFIG = {
   /**
    * URL of the copy from the default spreadsheet template.
-   * https://docs.google.com/spreadsheets/d/1ki-fYL3CjKsU-ems174M42NJ4TMfaWo3SPw-oZYuOvs/copy
+   * https://docs.google.com/spreadsheets/d/1iEGccfrcbTTinUdnNXzhZm4XbyDy51vpjVoH1Ky2esk/copy
    @const {string}
    */
   spreadsheet_url: "-----",

@@ -26,8 +26,8 @@
  *https://developers.google.com/google-ads/scripts/docs/solutions/adsmanagerapp-account-anomaly-detector
  *for more details.
  *
- * Template spreadhseet:
- * https://docs.google.com/spreadsheets/d/1gd-55ZqtQJp2fXmPzqrpZU4ZXivOk8Pcf_mvFS0qejM/copy
+ * Template spreadsheet:
+ * https://docs.google.com/spreadsheets/d/1iEGccfrcbTTinUdnNXzhZm4XbyDy51vpjVoH1Ky2esk/copy
  *
  *
  * Reminder:

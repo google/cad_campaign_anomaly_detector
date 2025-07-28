@@ -239,6 +239,30 @@ const MetricTypes = {
     isFromGoogleAds: true,
     isWriteToSheet: true,
   },
+  installs: {
+    email: "Installs",
+    isMonitored: true,
+    shouldBeRounded: true,
+    isCumulative: true,
+    isWriteToSheet: true,
+  },
+  cost_per_install: {
+    email: "Cost per Install",
+    isMonitored: true,
+    isWriteToSheet: true,
+  },
+  in_app_actions: {
+    email: "In-app actions",
+    isMonitored: true,
+    shouldBeRounded: true,
+    isCumulative: true,
+    isWriteToSheet: true,
+  },
+  cost_per_in_app_action: {
+    email: "Cost per In-app action",
+    isMonitored: true,
+    isWriteToSheet: true,
+  },
 };
 
 /**
@@ -297,10 +321,10 @@ class CadResultForEntity {
   }
 
   /**
-     * Gets an array of monitored metric keys.
-     *
-     * @returns {Array<string>} Monitored metric keys
-     */
+   * Gets an array of monitored metric keys.
+   *
+   * @returns {Array<string>} Monitored metric keys
+   */
   getMonitoredMetrics() {
     let monitoredMetrics = [];
     Object.keys(MetricTypes).forEach(function (key, index) {
@@ -366,18 +390,73 @@ class CadResultForEntity {
    */
   handleSelfCalcMetrics(metric, id, comparisonResultForSpecificMetric, currentStats, pastStats) {
     let gAdsMetric = `metrics.${metric}`;
+    let costMicros = 'metrics.cost_micros';
     currentStats[id] = currentStats[id] || {};
     pastStats[id] = pastStats[id] || {};
 
-    let isSpecialMetric = false;
-    if (gAdsMetric.includes("roas_all")) {
-      comparisonResultForSpecificMetric.past = pastStats[id][gAdsMetric] ? this.safeDivide(pastStats[id], "metrics.all_conversions_value", "metrics.cost_micros") : 0;
-      comparisonResultForSpecificMetric.current = this.safeDivide(currentStats[id], "metrics.all_conversions_value", "metrics.cost_micros");
-      isSpecialMetric = true;
-    } else if (gAdsMetric.includes("roas")) {
-      comparisonResultForSpecificMetric.past = pastStats[id][gAdsMetric] ? this.safeDivide(pastStats[id], "metrics.conversions_value", "metrics.cost_micros") : 0;
-      comparisonResultForSpecificMetric.current = this.safeDivide(currentStats[id], "metrics.conversions_value", "metrics.cost_micros");
-      isSpecialMetric = true;
+    let isSpecialMetric = true;
+    switch (metric) {
+      case 'roas_all':
+        comparisonResultForSpecificMetric.past = pastStats[id]?.[gAdsMetric]
+          ? this.safeDivide(pastStats[id], 'metrics.all_conversions_value', costMicros)
+          : 0;
+        comparisonResultForSpecificMetric.current = this.safeDivide(currentStats[id], 'metrics.all_conversions_value', costMicros);
+        break;
+
+      case 'roas':
+        comparisonResultForSpecificMetric.past = pastStats[id]?.[gAdsMetric]
+          ? this.safeDivide(pastStats[id], 'metrics.conversions_value', costMicros)
+          : 0;
+        comparisonResultForSpecificMetric.current = this.safeDivide(currentStats[id], 'metrics.conversions_value', costMicros);
+        break;
+
+      case 'installs':
+        comparisonResultForSpecificMetric.past = pastStats[id]?.[gAdsMetric] ?? 0;
+        comparisonResultForSpecificMetric.current = currentStats[id]?.[gAdsMetric] ?? 0;
+        break;
+
+      case 'in_app_actions':
+        comparisonResultForSpecificMetric.past = pastStats[id]?.[gAdsMetric] ?? 0;
+        comparisonResultForSpecificMetric.current = currentStats[id]?.[gAdsMetric] ?? 0;
+        break;
+
+      case 'cost_per_install': {
+        const pastCost = pastStats[id]?.[costMicros] ?? 0;
+        const pastInstalls = pastStats[id]?.['metrics.installs'] ?? 0;
+        comparisonResultForSpecificMetric.past = this.safeDivide({
+          cost: pastCost,
+          installs: pastInstalls
+        }, 'cost', 'installs');
+
+        const currentCost = currentStats[id]?.[costMicros] ?? 0;
+        const currentInstalls = currentStats[id]?.['metrics.installs'] ?? 0;
+        comparisonResultForSpecificMetric.current = this.safeDivide({
+          cost: currentCost,
+          installs: currentInstalls
+        }, 'cost', 'installs');
+        break;
+      }
+
+      case 'cost_per_in_app_action': {
+        const pastCost = pastStats[id]?.[costMicros] ?? 0;
+        const pastActions = pastStats[id]?.['metrics.in_app_actions'] ?? 0;
+        comparisonResultForSpecificMetric.past = this.safeDivide({
+          cost: pastCost,
+          actions: pastActions
+        }, 'cost', 'actions');
+
+        const currentCost = currentStats[id]?.[costMicros] ?? 0;
+        const currentActions = currentStats[id]?.['metrics.in_app_actions'] ?? 0;
+        comparisonResultForSpecificMetric.current = this.safeDivide({
+          cost: currentCost,
+          actions: currentActions
+        }, 'cost', 'actions');
+        break;
+      }
+
+      default:
+        isSpecialMetric = false;
+        break;
     }
     return isSpecialMetric;
   }
@@ -484,7 +563,9 @@ class CadResultForEntity {
         );
       } else if (
         metricType.includes("cost_per_conversion") ||
-        metricType.includes("cost_micros")
+        metricType.includes("cost_micros") ||
+        metricType.includes("cost_per_install") ||
+        metricType.includes("cost_per_in_app_action")
       ) {
         metricStrings = this.toMetricStrings(
           currentAvgValue,
@@ -899,7 +980,7 @@ class TimeUtils {
       ),
       weekday: `AND segments.day_of_week = '${weekdays[
         lastQueryableDate.getUTCDay()
-      ].toUpperCase()}'`,
+        ].toUpperCase()}'`,
       hourWhereClauseEqual: `AND segments.hour = ${pastHourStr}`,
       hourWhereClauseSmaller: `AND segments.hour < ${pastHourStr}`,
     };
@@ -1155,16 +1236,16 @@ class SheetUtils {
     }
     const currentAndPastPeriodUnit =
       TimeFrameUnits[
-      mySpreadsheet.getRangeByName(NamedRanges.CURRENT_PERIOD_UNIT).getValue()
-      ] || 1;
+        mySpreadsheet.getRangeByName(NamedRanges.CURRENT_PERIOD_UNIT).getValue()
+        ] || 1;
     const currentEndUnit =
       TimeFrameUnits[
-      mySpreadsheet.getRangeByName(NamedRanges.CURRENT_END_UNIT).getValue()
-      ] || 1;
+        mySpreadsheet.getRangeByName(NamedRanges.CURRENT_END_UNIT).getValue()
+        ] || 1;
     const pastEndUnit =
       TimeFrameUnits[
-      mySpreadsheet.getRangeByName(NamedRanges.PAST_END_UNIT).getValue()
-      ] || 1;
+        mySpreadsheet.getRangeByName(NamedRanges.PAST_END_UNIT).getValue()
+        ] || 1;
     for (let el in cadConfig.lookbackInUnits) {
       cadConfig.lookbackInUnits[el] = mySpreadsheet
         .getRangeByName(el)
@@ -1242,7 +1323,7 @@ class SheetUtils {
           parseFloat(cadConfig.lookbackInUnits.past_period_length) *
           currentAndPastPeriodUnit;
         cadConfig.lookbackInDays.past_period_length_text =
-         `${beforeLastQueryableHour.hourWhereClauseSmaller} for partial 1`.replace(
+          `${beforeLastQueryableHour.hourWhereClauseSmaller} for partial 1`.replace(
             "AND ",
             ""
           );
@@ -1868,18 +1949,23 @@ function aggAccountReportToCadResults(
     Logger.log("pastQuery accounts= " + JSON.stringify(pastQuery));
   }
 
+  let convBaseQuery = `SELECT customer.descriptive_name, metrics.conversions, segments.conversion_action_category ${cadConfig.hourSegmentInSelect} ${cadConfig.splitByNetworkQuery} FROM customer WHERE segments.date BETWEEN`;
 
+  let currentConvQuery = `${convBaseQuery} "${cadConfig.lookbackDates.current_range_start_date.query_date}" AND "${cadConfig.lookbackDates.current_range_end_date.query_date}" ${cadConfig.hourSegmentsWhereClause.current}`;
+  let pastConvQuery = `${convBaseQuery} "${cadConfig.lookbackDates.past_range_start_date.query_date}" AND "${cadConfig.lookbackDates.past_range_end_date.query_date}" ${cadConfig.hourSegmentsWhereClause.past}`;
 
-  let currentStats = storeReportByEntityId(
+  let currentStats = storePerformanceReport(
     EntityType.Account,
     AdsApp.report(currentQuery, CONFIG.reporting_options)
   );
+  storeAndMergeConversionReport(EntityType.Account, AdsApp.report(currentConvQuery, CONFIG.reporting_options), currentStats);
   Logger.log(LOG_PAST_DEVIDER);
 
-  let pastStats = storeReportByEntityId(
+  let pastStats = storePerformanceReport(
     EntityType.Account,
     AdsApp.report(pastQuery, CONFIG.reporting_options)
   );
+  storeAndMergeConversionReport(EntityType.Account, AdsApp.report(pastConvQuery, CONFIG.reporting_options), pastStats);
 
   if (CONFIG.is_debug_log) {
     Logger.log("currentStats accounts= " + JSON.stringify(currentStats));
@@ -1987,8 +2073,7 @@ function campaignReportToCadResults(entitieIdsForCurrentAccount, cadConfig) {
   // We expect current searchResults to contain DISABLED campaigns as well
   // thus > past results
   //  Campaign query
-  let specificCampaignsQuery = `SELECT customer.descriptive_name, campaign.id, campaign.name, ${getGadsQueryFieldsAsString()} ${cadConfig.hourSegmentInSelect
-    }${cadConfig.splitByNetworkQuery} FROM campaign WHERE campaign.id IN (${entityIds}) AND segments.date BETWEEN`;
+  let specificCampaignsQuery = `SELECT customer.descriptive_name, campaign.id, campaign.name,${getGadsQueryFieldsAsString()} ${cadConfig.hourSegmentInSelect} ${cadConfig.splitByNetworkQuery} FROM campaign WHERE campaign.id IN (${entityIds}) AND segments.date BETWEEN`;
 
   switch (cadConfig.avgType) {
     case AVG_TYPE.AVG_TYPE_DAILY_WEEKDAYS:
@@ -2005,20 +2090,29 @@ function campaignReportToCadResults(entitieIdsForCurrentAccount, cadConfig) {
   let currentQuery = `${specificCampaignsQuery} "${cadConfig.lookbackDates.current_range_start_date.query_date}" AND "${cadConfig.lookbackDates.current_range_end_date.query_date}" ${cadConfig.hourSegmentsWhereClause.current}`;
   let pastQuery = `${specificCampaignsQuery} "${cadConfig.lookbackDates.past_range_start_date.query_date}" AND "${cadConfig.lookbackDates.past_range_end_date.query_date}"  ${cadConfig.hourSegmentsWhereClause.past}`;
 
+  let convBaseQuery = `SELECT campaign.id, metrics.conversions, segments.conversion_action_category ${cadConfig.hourSegmentInSelect} ${cadConfig.splitByNetworkQuery} FROM campaign WHERE campaign.id IN (${entityIds}) AND segments.date BETWEEN`;
+
+  let currentConvQuery = `${convBaseQuery} "${cadConfig.lookbackDates.current_range_start_date.query_date}" AND "${cadConfig.lookbackDates.current_range_end_date.query_date}" ${cadConfig.hourSegmentsWhereClause.current}`;
+  let pastConvQuery = `${convBaseQuery} "${cadConfig.lookbackDates.past_range_start_date.query_date}" AND "${cadConfig.lookbackDates.past_range_end_date.query_date}" ${cadConfig.hourSegmentsWhereClause.past}`;
+
   if (CONFIG.is_debug_log) {
     Logger.log("currentQuery = " + JSON.stringify(currentQuery));
     Logger.log("pastQuery = " + JSON.stringify(pastQuery));
   }
 
-  let currentStats = storeReportByEntityId(
+  let currentStats = storePerformanceReport(
     EntityType.Campaign,
     AdsApp.report(currentQuery, CONFIG.reporting_options)
   );
+  storeAndMergeConversionReport(EntityType.Campaign, AdsApp.report(currentConvQuery, CONFIG.reporting_options), currentStats);
+
   Logger.log(LOG_PAST_DEVIDER);
-  let pastStats = storeReportByEntityId(
+
+  let pastStats = storePerformanceReport(
     EntityType.Campaign,
     AdsApp.report(pastQuery, CONFIG.reporting_options)
   );
+  storeAndMergeConversionReport(EntityType.Campaign, AdsApp.report(pastConvQuery, CONFIG.reporting_options), pastStats);
 
   if (CONFIG.is_debug_log) {
     Logger.log("currentStats= " + JSON.stringify(currentStats));
@@ -2050,7 +2144,7 @@ function campaignReportToCadResults(entitieIdsForCurrentAccount, cadConfig) {
 }
 
 /**
- * campaign report to cad monitoring results
+ * Ad group report to cad monitoring results
  * @param {!Object} entitieIdsForCurrentAccount The current account.
  * @param {!Object} cadConfig CAD user input.
  * @return {Array<!CadResultForEntity>} CAD monitoring results
@@ -2069,8 +2163,7 @@ function adGroupReportToCadResults(entitieIdsForCurrentAccount, cadConfig) {
   // We expect current searchResults to contain DISABLED campaigns as well
   // thus > past results
   //  Campaign query
-  let specificEntityQuery = `SELECT customer.descriptive_name, campaign.id, campaign.name, ad_group.id, ad_group.name, ${getGadsQueryFieldsAsString()} ${cadConfig.hourSegmentInSelect
-    }${cadConfig.splitByNetworkQuery} FROM ad_group WHERE ad_group.id IN (${entityIds}) AND segments.date BETWEEN`;
+  let specificEntityQuery = `SELECT customer.descriptive_name, campaign.id, campaign.name, ad_group.id, ad_group.name, ${getGadsQueryFieldsAsString()} ${cadConfig.hourSegmentInSelect}${cadConfig.splitByNetworkQuery} FROM ad_group WHERE ad_group.id IN (${entityIds}) AND segments.date BETWEEN`;
 
   specificEntityQuery = removeElementFromStringList(
     "metrics.search_click_share",
@@ -2080,21 +2173,30 @@ function adGroupReportToCadResults(entitieIdsForCurrentAccount, cadConfig) {
   let currentQuery = `${specificEntityQuery} "${cadConfig.lookbackDates.current_range_start_date.query_date}" AND "${cadConfig.lookbackDates.current_range_end_date.query_date}" ${cadConfig.hourSegmentsWhereClause.current}`;
   let pastQuery = `${specificEntityQuery} "${cadConfig.lookbackDates.past_range_start_date.query_date}" AND "${cadConfig.lookbackDates.past_range_end_date.query_date}"  ${cadConfig.hourSegmentsWhereClause.past}`;
 
+  let convBaseQuery = `SELECT ad_group.id, metrics.conversions, segments.conversion_action_category ${cadConfig.hourSegmentInSelect} ${cadConfig.splitByNetworkQuery} FROM ad_group WHERE ad_group.id IN (${entityIds}) AND segments.date BETWEEN`;
+
+  let currentConvQuery = `${convBaseQuery} "${cadConfig.lookbackDates.current_range_start_date.query_date}" AND "${cadConfig.lookbackDates.current_range_end_date.query_date}" ${cadConfig.hourSegmentsWhereClause.current}`;
+  let pastConvQuery = `${convBaseQuery} "${cadConfig.lookbackDates.past_range_start_date.query_date}" AND "${cadConfig.lookbackDates.past_range_end_date.query_date}" ${cadConfig.hourSegmentsWhereClause.past}`;
+
   if (CONFIG.is_debug_log) {
     Logger.log("currentQuery = " + JSON.stringify(currentQuery));
     Logger.log(LOG_PAST_DEVIDER);
     Logger.log("pastQuery = " + JSON.stringify(pastQuery));
   }
 
-  let currentStats = storeReportByEntityId(
+  let currentStats = storePerformanceReport(
     EntityType.AdGroup,
     AdsApp.report(currentQuery, CONFIG.reporting_options)
   );
+  storeAndMergeConversionReport(EntityType.AdGroup, AdsApp.report(currentConvQuery, CONFIG.reporting_options), currentStats);
+
   Logger.log(LOG_PAST_DEVIDER);
-  let pastStats = storeReportByEntityId(
+
+  let pastStats = storePerformanceReport(
     EntityType.AdGroup,
     AdsApp.report(pastQuery, CONFIG.reporting_options)
   );
+  storeAndMergeConversionReport(EntityType.AdGroup, AdsApp.report(pastConvQuery, CONFIG.reporting_options), pastStats);
 
   if (CONFIG.is_debug_log) {
     Logger.log("currentStats= " + JSON.stringify(currentStats));
@@ -2108,8 +2210,7 @@ function adGroupReportToCadResults(entitieIdsForCurrentAccount, cadConfig) {
 
     cadSingleResult.relevant_label = entitieIdsForCurrentAccount[adGroupId];
     cadSingleResult.account.id = AdsApp.currentAccount().getCustomerId();
-    cadSingleResult.account.name =
-      currentStats[adGroupId]["customer.descriptive_name"];
+    cadSingleResult.account.name = currentStats[adGroupId]["customer.descriptive_name"];
     cadSingleResult.campaign.id = currentStats[adGroupId]["campaign.id"];
     cadSingleResult.campaign.name = currentStats[adGroupId]["campaign.name"];
     cadSingleResult.adGroup.id = currentStats[adGroupId]["ad_group.id"];
@@ -2128,31 +2229,21 @@ function adGroupReportToCadResults(entitieIdsForCurrentAccount, cadConfig) {
 }
 
 /**
- * GAds report to metric stats map
+ * Stores base performance metrics from a report.
+ * @param {string} entityStr Entity type string
  * @param {!Object} searchResults GAds search results
- * @param {!Object} cadConfig CAD config
  * @return {!Object} metric stats map.
  */
-function storeReportByEntityId(entityStr, searchResults) {
+function storePerformanceReport(entityStr, searchResults) {
   let statsMap = {};
   for (const row of searchResults.rows()) {
     let id;
     switch (entityStr) {
-      case "ad_group": {
-        id = row["ad_group.id"];
-        break;
-      }
-      case "campaign": {
-        id = row["campaign.id"];
-        break;
-      }
-      default:
-      case "account": {
-        id = AdsApp.currentAccount().getCustomerId();
-        break;
-      }
+      case "ad_group": id = row["ad_group.id"]; break;
+      case "campaign": id = row["campaign.id"]; break;
+      default: id = AdsApp.currentAccount().getCustomerId(); break;
     }
-    fillDictWithZerosWhenMissingKeys(row, getGadsQueryFieldsAsArray());
+    if (!id) continue;
 
     if (row["segments.adNetworkType"]) {
       id = `${id}_${row["segments.adNetworkType"]}`;
@@ -2161,64 +2252,58 @@ function storeReportByEntityId(entityStr, searchResults) {
     if (CONFIG.is_debug_log) {
       //Logger.log("Row from API for id = " + id + " row=" + JSON.stringify(row));
     }
-    if (!statsMap[id] || statsMap[id] == {}) {
-      statsMap[id] = row;
-    } else {
-      statsMap[id] = sumRows(statsMap[id], row);
-    }
+    // Initialize object and add all metrics from the row.
+    statsMap[id] = row;
+    // Also initialize our custom metrics to 0.
+    statsMap[id]['metrics.installs'] = 0;
+    statsMap[id]['metrics.in_app_actions'] = 0;
   }
   return statsMap;
 }
 
-function fillDictWithZerosWhenMissingKeys(originalDict, newKeysDict) {
-  for (let key of newKeysDict) {
-    if (!(key in originalDict)) {
-      originalDict[key] = 0;
+/**
+ * Stores and merges conversion-specific metrics into an existing stats map.
+ * @param {string} entityStr Entity type string
+ * @param {!Object} searchResults GAds search results
+ * @param {!Object} statsMap The existing stats map to merge into.
+ */
+function storeAndMergeConversionReport(entityStr, searchResults, statsMap) {
+  for (const row of searchResults.rows()) {
+    let id;
+    switch (entityStr) {
+      case "ad_group": id = row["ad_group.id"]; break;
+      case "campaign": id = row["campaign.id"]; break;
+      default: id = AdsApp.currentAccount().getCustomerId(); break;
+    }
+    if (!id) continue;
+
+    if (row["segments.adNetworkType"]) {
+      id = `${id}_${row["segments.adNetworkType"]}`;
+    }
+
+    // If the entity wasn't in the performance report (e.g., zero impressions but had conversions),
+    // we need to initialize it.
+    if (!statsMap[id]) {
+      statsMap[id] = {};
+      Object.keys(MetricTypes).forEach(metricName => {
+        statsMap[id][`metrics.${metricName}`] = 0;
+      });
+      statsMap[id]['metrics.installs'] = 0;
+      statsMap[id]['metrics.in_app_actions'] = 0;
+    }
+
+    const category = row['segments.conversion_action_category'];
+    const conversions = parseFloat(row['metrics.conversions']) || 0;
+
+    // we split the conversions between installs and in-app actions based in the category
+    if (category === 'DOWNLOAD') {
+      statsMap[id]['metrics.installs'] += conversions;
+    } else if (category && category !== 'DEFAULT') {
+      statsMap[id]['metrics.in_app_actions'] += conversions;
     }
   }
 }
 
-function sumRows(row1, row2) {
-  let result = {};
-  const allKeys = unifyKeys(row1, row2);
-  // for-in for dictionary. for-of for list/array
-  for (const gAdsKey of allKeys) {
-    // Handle undefined values gracefully
-    const value1 = row1[gAdsKey] === undefined ? 0 : row1[gAdsKey];
-    const value2 = row2[gAdsKey] === undefined ? 0 : row2[gAdsKey];
-
-    if (isNumericOrNumericString(value1) && isNumericOrNumericString(value2)) {
-      const key = removeGadsPrefix(gAdsKey);
-      if (key && MetricTypes[key].isCumulative) {
-        result[gAdsKey] = parseFloat(value1) + parseFloat(value2); // No need for || 0 since undefined is 0 now
-      } else {
-        result[gAdsKey] = 0;
-      }
-    } else if (gAdsKey.toLocaleLowerCase().includes('id') || gAdsKey.toLocaleLowerCase().includes('name')
-    || gAdsKey.toLocaleLowerCase().includes('network')) {
-      result[gAdsKey] = value1;
-    } else {
-      result[gAdsKey] = `cannot sum value2 = ${value2}`;
-    }
-  }
-  return result;
-}
-
-function isNumericOrNumericString(value) {
-  return typeof value === 'number' || (typeof value === 'string' && !isNaN(parseFloat(value)));
-}
-
-function removeGadsPrefix(gAdsKey) {
-  if (gAdsKey.includes("metrics.")) {
-    key = gAdsKey.replace("metrics.", "");
-    return key;
-  }
-  return false;
-}
-
-function unifyKeys(obj1, obj2) {
-  return Array.from(new Set(Object.keys(obj1).concat(Object.keys(obj2))));
-}
 
 /** ============= Mail Handler ==================== */
 /**

@@ -16,6 +16,7 @@ The [user guide](https://docs.google.com/document/d/1PZZcCjLrg70d5Kj0Mr87ARAk2Q0
 - meiravshaul@google.com
 - Dev:
 - eladb@google.com
+- lidana@google.com
 
 </br>
 </br>
