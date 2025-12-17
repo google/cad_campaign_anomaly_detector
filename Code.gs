@@ -623,7 +623,7 @@ class CadResultForEntity {
   toEmailFormat() {
     if (!this.isTriggerAlert) return "";
 
-    let adGtoupHeader = this.adGroup.id
+    let adGroupHeader = this.adGroup.id
       ? `: ${this.adGroup.id} ${this.adGroup.name}`
       : "";
 
@@ -632,7 +632,7 @@ class CadResultForEntity {
       : "";
 
     let alertTextForEntity = [
-      `<br>Anomalies for: ${this.account.id} ${this.account.name} ${campaignHeader} ${adGtoupHeader}
+      `<br>Anomalies for: ${this.account.id} ${this.account.name} ${campaignHeader} ${adGroupHeader}
       <br>(Only relevant metrics. For all metrics see the end of the email)
      <br><table style="width:50%;border:1px solid black;"><tr style="border:1px solid black;"><th style="text-align:left;border:1px solid black;">Metric</th><th style="text-align:left;border:1px solid black;">Current</th><th style="text-align:left;border:1px solid black;">Past</th> <th style="text-align:left;border:1px solid black;">Δ</th> <th style="text-align:left;border:1px solid black;">Δ%</th></tr>`,
     ];
@@ -865,7 +865,7 @@ class CadConfig {
     this.accounts = {
       ids: [],
       excluded_ids: [],
-      labels: [],
+      labels: "",
     };
     this.campaigns = {
       ids: "",
@@ -1071,8 +1071,7 @@ class SheetUtils {
     switch (data_aggregation) {
       case "Account":
         cadConfig.accounts.ids = SheetUtils.getInstance().toArray(entity_ids);
-        cadConfig.accounts.labels =
-          SheetUtils.getInstance().toArray(entity_labels);
+        cadConfig.accounts.labels = this.addQuotesIfNeeded(entity_labels);
         cadConfig.accounts.excluded_ids =
           SheetUtils.getInstance().toArray(entity_excluded_ids);
         break;
@@ -1080,8 +1079,7 @@ class SheetUtils {
       case "Campaign":
         cadConfig.campaigns.ids = this.addQuotesIfNeeded(entity_ids);
         cadConfig.campaigns.labels = this.addQuotesIfNeeded(entity_labels);
-        cadConfig.campaigns.excluded_ids =
-          this.addQuotesIfNeeded(entity_excluded_ids);
+        cadConfig.campaigns.excluded_ids = this.addQuotesIfNeeded(entity_excluded_ids);
         cadConfig.campaigns.all_under_parents =
           SheetUtils.getInstance().toArray(
             mySpreadsheet
@@ -1093,7 +1091,7 @@ class SheetUtils {
       default:
       case "Ad Group":
         cadConfig.adGroup.ids = entity_ids;
-        cadConfig.adGroup.labels = entity_labels;
+        cadConfig.adGroup.labels = this.addQuotesIfNeeded(entity_labels);
         cadConfig.adGroup.excluded_ids = entity_excluded_ids;
         cadConfig.adGroup.all_under_parents = SheetUtils.getInstance().toArray(
           mySpreadsheet
@@ -1519,7 +1517,7 @@ class GoogleAdsAccountSelector {
   getAllSubAccounts() {
     const accountIterator = AdsManagerApp.accounts().get();
     let accounts = this.iterate(accountIterator);
-    Logger.log("MCC has " + accounts.length + " child accounts");
+    Logger.log("MCC has " + AdsManagerApp.accounts().get().totalNumEntities() + " child accounts");
     return accounts;
   }
 
@@ -1589,7 +1587,7 @@ class GoogleAdsAccountSelector {
     }
     if (
       cadConfig.accounts.labels.length > 0 ||
-      cadConfig.accounts.labels.length > 0 ||
+      cadConfig.campaigns.labels.length > 0 ||
       cadConfig.adGroup.labels.length > 0 ||
       cadConfig.adGroup.all_under_parents != ""
     ) {
@@ -1620,11 +1618,28 @@ class GoogleAdsAccountSelector {
    *     current account.
    */
   getRelevantLabelsForAccount(currentAccount, cadConfig) {
-    let inputLabels = cadConfig.accounts.labels;
+    const inputLabels = cadConfig.accounts.labels;
     const relevantLabels = [];
+
+    if (!inputLabels) {
+      return relevantLabels;
+    }
+
+    const monitoredLabels = new Set(
+      inputLabels.split(',').map(label => label.trim().replace(/^"|"$/g, ""))
+    );
+
+    if (CONFIG.is_debug_log) {
+      Logger.log("Input Labels (parsed):" + JSON.stringify([...monitoredLabels]));
+      const allAccountLabels = Array.from(currentAccount.labels().get(), label => label.getName());
+      Logger.log("Current account labels (parsed):" + JSON.stringify([...allAccountLabels]));
+    }
+
     for (const label of currentAccount.labels().get()) {
-      if (label.getName() in inputLabels) {
-        relevantLabels.push(label.getName());
+      const accountLabelName = label.getName().trim().replace(/^"|"$/g, "");
+
+      if (monitoredLabels.has(accountLabelName)) {
+        relevantLabels.push(accountLabelName);
       }
     }
     return relevantLabels;
@@ -1649,7 +1664,7 @@ class GoogleAdsCampaignSelector {
     let campaignMapForCurrentAccount = {};
     const campaignIds = cadConfig.campaigns.ids;
     let forAccountIds = cadConfig.campaigns.all_under_parents;
-    const campaignLabels = cadConfig.campaigns.campaign_labels;
+    const campaignLabels = cadConfig.campaigns.labels;
     const excludedCampaignIds = cadConfig.campaigns.excluded_ids;
     const excludedClause =
       !excludedCampaignIds || excludedCampaignIds == ""
