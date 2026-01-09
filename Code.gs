@@ -321,10 +321,10 @@ class CadResultForEntity {
   }
 
   /**
-   * Gets an array of monitored metric keys.
-   *
-   * @returns {Array<string>} Monitored metric keys
-   */
+     * Gets an array of monitored metric keys.
+     *
+     * @returns {Array<string>} Monitored metric keys
+     */
   getMonitoredMetrics() {
     let monitoredMetrics = [];
     Object.keys(MetricTypes).forEach(function (key, index) {
@@ -980,7 +980,7 @@ class TimeUtils {
       ),
       weekday: `AND segments.day_of_week = '${weekdays[
         lastQueryableDate.getUTCDay()
-        ].toUpperCase()}'`,
+      ].toUpperCase()}'`,
       hourWhereClauseEqual: `AND segments.hour = ${pastHourStr}`,
       hourWhereClauseSmaller: `AND segments.hour < ${pastHourStr}`,
     };
@@ -1234,16 +1234,16 @@ class SheetUtils {
     }
     const currentAndPastPeriodUnit =
       TimeFrameUnits[
-        mySpreadsheet.getRangeByName(NamedRanges.CURRENT_PERIOD_UNIT).getValue()
-        ] || 1;
+      mySpreadsheet.getRangeByName(NamedRanges.CURRENT_PERIOD_UNIT).getValue()
+      ] || 1;
     const currentEndUnit =
       TimeFrameUnits[
-        mySpreadsheet.getRangeByName(NamedRanges.CURRENT_END_UNIT).getValue()
-        ] || 1;
+      mySpreadsheet.getRangeByName(NamedRanges.CURRENT_END_UNIT).getValue()
+      ] || 1;
     const pastEndUnit =
       TimeFrameUnits[
-        mySpreadsheet.getRangeByName(NamedRanges.PAST_END_UNIT).getValue()
-        ] || 1;
+      mySpreadsheet.getRangeByName(NamedRanges.PAST_END_UNIT).getValue()
+      ] || 1;
     for (let el in cadConfig.lookbackInUnits) {
       cadConfig.lookbackInUnits[el] = mySpreadsheet
         .getRangeByName(el)
@@ -1321,7 +1321,7 @@ class SheetUtils {
           parseFloat(cadConfig.lookbackInUnits.past_period_length) *
           currentAndPastPeriodUnit;
         cadConfig.lookbackInDays.past_period_length_text =
-          `${beforeLastQueryableHour.hourWhereClauseSmaller} for partial 1`.replace(
+         `${beforeLastQueryableHour.hourWhereClauseSmaller} for partial 1`.replace(
             "AND ",
             ""
           );
@@ -1363,12 +1363,14 @@ class SheetUtils {
         cadConfig.lookbackInDays.current_period_length =
           parseFloat(cadConfig.lookbackInUnits.current_period_length) *
           currentAndPastPeriodUnit;
+        cadConfig.lookbackInDays.current_period_length_text = String(cadConfig.lookbackInDays.current_period_length);
         cadConfig.lookbackInDays.current_ended_length_ago =
           parseFloat(cadConfig.lookbackInUnits.current_ended_length_ago) *
           currentEndUnit;
         cadConfig.lookbackInDays.past_period_length =
           parseFloat(cadConfig.lookbackInUnits.past_period_length) *
           currentAndPastPeriodUnit;
+        cadConfig.lookbackInDays.past_period_length_text = String(cadConfig.lookbackInDays.past_period_length);
         cadConfig.lookbackInDays.past_ended_length_ago =
           parseFloat(cadConfig.lookbackInUnits.past_ended_length_ago) *
           pastEndUnit;
