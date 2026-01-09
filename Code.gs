@@ -308,12 +308,12 @@ class CadResultForEntity {
    * @param {!CadConfig} cadConfig CAD config
    */
   fillMetricComparisonResults(id, currentStats, pastStats, cadConfig) {
-    let monitoredMetrics = this.getMonitoredMetrics();
+    const monitoredMetrics = this.getMonitoredMetrics();
 
     for (let metric of monitoredMetrics) {
-      let gAdsMetric = `metrics.${metric}`;
+      const gAdsMetric = `metrics.${metric}`;
       this.allMetricsComparisons[gAdsMetric] = new MetricResult();
-      let comparisonResultForSpecificMetric = this.allMetricsComparisons[gAdsMetric];
+      const comparisonResultForSpecificMetric = this.allMetricsComparisons[gAdsMetric];
 
       this.handleNumericMetrics(metric, id, currentStats, pastStats);
       const isSelfCalc = this.handleSelfCalcMetrics(metric, id, comparisonResultForSpecificMetric, currentStats, pastStats, cadConfig);
@@ -341,7 +341,7 @@ class CadResultForEntity {
      * @returns {Array<string>} Monitored metric keys
      */
   getMonitoredMetrics() {
-    let monitoredMetrics = [];
+    const monitoredMetrics = [];
     Object.keys(MetricTypes).forEach(function (key, index) {
       if (MetricTypes[key].isMonitored) {
         monitoredMetrics.push(key);
@@ -359,7 +359,7 @@ class CadResultForEntity {
    * @param {!Object} pastStats Past stats map
    */
   handleNumericMetrics(metric, id, currentStats, pastStats) {
-    let gAdsMetric = `metrics.${metric}`;
+    const gAdsMetric = `metrics.${metric}`;
     currentStats[id] = currentStats[id] || {};
     pastStats[id] = pastStats[id] || {};
 
@@ -385,7 +385,7 @@ class CadResultForEntity {
    * @param {!CadConfig} cadConfig CAD config
    */
   handleRegularCumulativeMetrics(metric, id, comparisonResultForSpecificMetric, currentStats, pastStats, cadConfig) {
-    let gAdsMetric = `metrics.${metric}`;
+    const gAdsMetric = `metrics.${metric}`;
     currentStats[id] = currentStats[id] || {};
     pastStats[id] = pastStats[id] || {};
 
@@ -404,8 +404,8 @@ class CadResultForEntity {
    * @param {!Object} pastStats Past stats map
    */
   handleSelfCalcMetrics(metric, id, comparisonResultForSpecificMetric, currentStats, pastStats) {
-    let gAdsMetric = `metrics.${metric}`;
-    let costMicros = 'metrics.cost_micros';
+    const gAdsMetric = `metrics.${metric}`;
+    const costMicros = 'metrics.cost_micros';
     currentStats[id] = currentStats[id] || {};
     pastStats[id] = pastStats[id] || {};
 
@@ -499,7 +499,7 @@ class CadResultForEntity {
    * @param {!CadConfig} cadConfig CAD config
    */
   handleNonCumulativeMetrics(metric, id, comparisonResultForSpecificMetric, currentStats, pastStats, cadConfig) {
-    let gAdsMetric = `metrics.${metric}`;
+    const gAdsMetric = `metrics.${metric}`;
     currentStats[id] = currentStats[id] || {};
     pastStats[id] = pastStats[id] || {};
 
@@ -523,7 +523,7 @@ class CadResultForEntity {
     comparisonResult.isAboveHigh = cadConfig.thresholds[`${metric}_high`] > 0 && comparisonResult.changePercent >= cadConfig.thresholds[`${metric}_high`] * 100;
     comparisonResult.isBelowLow = cadConfig.thresholds[`${metric}_low`] < 0 && comparisonResult.changePercent <= cadConfig.thresholds[`${metric}_low`] * 100;
 
-    let ignoreAbs = cadConfig.thresholds[`${metric}_ignore`];
+    const ignoreAbs = cadConfig.thresholds[`${metric}_ignore`];
     if (!ignoreAbs || past >= ignoreAbs) {
       if (comparisonResult.isAboveHigh) {
         comparisonResult.metricAlertDirection = "up";
@@ -569,14 +569,14 @@ class CadResultForEntity {
    */
   truncateDecimalDigits() {
     for (let metricType in this.allMetricsComparisons) {
-      let metricTypeName = metricType.split(".")[1];
+      const metricTypeName = metricType.split(".")[1];
 
-      let currentAvgValue = this.allMetricsComparisons[metricType].current;
-      let pastAvgValue = this.allMetricsComparisons[metricType].past;
-      let numericDelta = this.allMetricsComparisons[metricType].changeAbs;
-      let percentageDelta =
+      const currentAvgValue = this.allMetricsComparisons[metricType].current;
+      const pastAvgValue = this.allMetricsComparisons[metricType].past;
+      const numericDelta = this.allMetricsComparisons[metricType].changeAbs;
+      const percentageDelta =
         this.allMetricsComparisons[metricType].changePercent;
-      let metricAlertDirection =
+      const metricAlertDirection =
         this.allMetricsComparisons[metricType].metricAlertDirection;
 
       let metricStrings = new MetricStrings();
@@ -655,25 +655,27 @@ class CadResultForEntity {
   toEmailFormat() {
     if (!this.isTriggerAlert) return "";
 
-    let adGroupHeader = this.adGroup.id
+    const adGroupHeader = this.adGroup.id
       ? `: ${this.adGroup.id} ${this.adGroup.name}`
       : "";
 
-    let campaignHeader = this.campaign.id
+    const campaignHeader = this.campaign.id
       ? `: ${this.campaign.id} ${this.campaign.name}`
       : "";
 
-    let adNetworkTypeHeader = this.adNetworkType ? `(${AD_NETWORK_TYPES[this.adNetworkType]})` : '';
+    const adNetworkTypeHeader = this.adNetworkType
+      ? `(${AD_NETWORK_TYPES[this.adNetworkType]})`
+      : "";
 
 
-    let alertTextForEntity = [
+    const alertTextForEntity = [
       `<br>Anomalies for: ${this.account.id} ${this.account.name} ${campaignHeader} ${adGroupHeader} ${adNetworkTypeHeader}
       <br>(Only relevant metrics. For all metrics see the end of the email)
      <br><table style="width:50%;border:1px solid black;"><tr style="border:1px solid black;"><th style="text-align:left;border:1px solid black;">Metric</th><th style="text-align:left;border:1px solid black;">Current</th><th style="text-align:left;border:1px solid black;">Past</th> <th style="text-align:left;border:1px solid black;">Δ</th> <th style="text-align:left;border:1px solid black;">Δ%</th></tr>`,
     ];
 
     for (let metricType in this.allMetricsComparisons) {
-      let metricType_name = metricType.split(".")[1];
+      const metricType_name = metricType.split(".")[1];
       if (!MetricTypes[metricType_name].isWriteToSheet) continue;
       if (!this.allMetricsComparisons[metricType].metricAlertDirection)
         continue;
@@ -815,14 +817,13 @@ ${numericDeltaStr} </td><td style="color: ${this.getDeltaColorPercentage(
       this.adGroup.name,
       this.adNetworkType ? AD_NETWORK_TYPES[this.adNetworkType] : '',
     ];
-
     console.log(
       `this.metricComparisonResults = ${JSON.stringify(
         this.allMetricsComparisons
       )}`
     );
     for (let metricType in this.allMetricsComparisons) {
-      let metricName = metricType.split(".")[1];
+      const metricName = metricType.split(".")[1];
       if (!MetricTypes[metricName].isMonitored) continue;
 
       rowData = rowData.concat([
@@ -946,7 +947,7 @@ function main() {
   const cadConfig = sheetUtils.readInput();
 
   // process request
-  let cadResults = getResultsForAllRelevantEntitiesUnderMCC(cadConfig);
+  const cadResults = getResultsForAllRelevantEntitiesUnderMCC(cadConfig);
   cadResults.forEach((item) => {
     item.truncateDecimalDigits();
   });
@@ -1029,7 +1030,7 @@ class TimeUtils {
  */
 class SheetUtils {
   constructor() {
-    let tmpSpreadsheet = SpreadsheetApp.openByUrl(CONFIG.spreadsheet_url);
+    const tmpSpreadsheet = SpreadsheetApp.openByUrl(CONFIG.spreadsheet_url);
     this.mySpreadsheet = tmpSpreadsheet;
     this.resultsSheet = tmpSpreadsheet.getSheetByName(
       NamedRanges.RESULTS_SHEET_NAME
@@ -1147,7 +1148,7 @@ class SheetUtils {
       cadConfig.thresholds[`${metric}_high`] = parseFloat(
         mySpreadsheet.getRangeByName(`${metric}_high`).getValue()
       );
-      let thresholdValue = parseFloat(mySpreadsheet.getRangeByName(`${metric}_low`).getValue());
+      const thresholdValue = parseFloat(mySpreadsheet.getRangeByName(`${metric}_low`).getValue());
       cadConfig.thresholds[`${metric}_low`] = thresholdValue >= 0 ? -1 * thresholdValue : thresholdValue;
 
       cadConfig.thresholds[`${metric}_ignore`] = parseFloat(
@@ -1160,8 +1161,8 @@ class SheetUtils {
   addQuotesIfNeeded(inputString) {
     inputString = String(inputString);
     if (!inputString) return inputString;
-    let items = inputString.split(",");
-    let output = [];
+    const items = inputString.split(",");
+    const output = [];
     for (let i = 0; i < items.length; i++) {
       let item = items[i].trim(); // Remove leading/trailing whitespace
       if (!item.startsWith('"')) {
@@ -1487,13 +1488,12 @@ class SheetUtils {
     });
     console.log(`newRows = ${JSON.stringify(newRows)}`);
     if (newRows.length) {
-      const metricListLength = Object.keys(this.getMonitoredMetrics()).length;
       this.resultsSheet
         .getRange(
           newStartingRow,
           NamedRanges.FIRST_DATA_COLUMN,
           newRows.length,
-          8 + 4 * metricListLength
+          newRows[0].length
         )
         .setValues(newRows);
     }
@@ -1508,7 +1508,7 @@ class SheetUtils {
     if (howMany > 0) {
       this.resultsSheet.deleteRows(NamedRanges.FIRST_DATA_ROW, howMany);
     }
-    let maxRows = this.resultsSheet.getMaxRows();
+    const maxRows = this.resultsSheet.getMaxRows();
     if (maxRows < 350) {
       this.resultsSheet.insertRows(maxRows, 1000);
     }
@@ -1555,7 +1555,7 @@ class GoogleAdsAccountSelector {
    */
   getAllSubAccounts() {
     const accountIterator = AdsManagerApp.accounts().get();
-    let accounts = this.iterate(accountIterator);
+    const accounts = this.iterate(accountIterator);
     Logger.log("MCC has " + AdsManagerApp.accounts().get().totalNumEntities() + " child accounts");
     return accounts;
   }
@@ -1568,7 +1568,7 @@ class GoogleAdsAccountSelector {
    */
   getAccountObjectsForIds(ids) {
     Logger.log("accountIterator=" + JSON.stringify(ids));
-    let accountIterator = AdsManagerApp.accounts().withIds(ids).get();
+    const accountIterator = AdsManagerApp.accounts().withIds(ids).get();
     return this.iterate(accountIterator);
   }
 
@@ -1579,9 +1579,9 @@ class GoogleAdsAccountSelector {
    * @return {!Array<?>} account list
    */
   iterate(accountIterator) {
-    let accounts = {};
+    const accounts = {};
     while (accountIterator.hasNext()) {
-      let currentAccount = accountIterator.next();
+      const currentAccount = accountIterator.next();
       Logger.log("iterate(accountIterator) " + currentAccount.getCustomerId());
       accounts[currentAccount.getCustomerId()] = currentAccount;
     }
@@ -1594,7 +1594,7 @@ class GoogleAdsAccountSelector {
    * @return {!Set<?>} Account set to traverse
    */
   getAccountsToTraverse(cadConfig) {
-    let accountsObjects = {};
+    const accountsObjects = {};
 
     if (CONFIG.is_debug_log) {
       console.log(
@@ -1702,7 +1702,7 @@ class GoogleAdsCampaignSelector {
     let selectCampaignQuery;
     let campaignMapForCurrentAccount = {};
     const campaignIds = cadConfig.campaigns.ids;
-    let forAccountIds = cadConfig.campaigns.all_under_parents;
+    const forAccountIds = cadConfig.campaigns.all_under_parents;
     const campaignLabels = cadConfig.campaigns.labels;
     const excludedCampaignIds = cadConfig.campaigns.excluded_ids;
     const excludedClause =
@@ -1884,7 +1884,7 @@ function getGadsQueryFieldsAsArray() {
  * @return {Array<!CadResultForEntity>} CAD monitoring results
  */
 function getResultsForAllRelevantEntitiesUnderMCC(cadConfig) {
-  let mccAccount = AdsApp.currentAccount();
+  const mccAccount = AdsApp.currentAccount();
   cadConfig.mcc = mccAccount.getCustomerId();
   const gAdsAccountSelector = new GoogleAdsAccountSelector(mccAccount);
 
@@ -1991,11 +1991,11 @@ function aggAccountReportToCadResults(
   console.log(
     `getGadsCustomerQueryFields for CUSTOMER = ${getGadsCustomerQueryFields}`
   );
-  let baseQuery = `SELECT customer.descriptive_name, ${getGadsCustomerQueryFields} ${cadConfig.hourSegmentInSelect}${cadConfig.splitByNetworkQuery} FROM customer WHERE segments.date BETWEEN`;
+  const baseQuery = `SELECT customer.descriptive_name, ${getGadsCustomerQueryFields} ${cadConfig.hourSegmentInSelect}${cadConfig.splitByNetworkQuery} FROM customer WHERE segments.date BETWEEN`;
 
-  let currentQuery = `${baseQuery} "${cadConfig.lookbackDates.current_range_start_date.query_date}" AND "${cadConfig.lookbackDates.current_range_end_date.query_date}"
+  const currentQuery = `${baseQuery} "${cadConfig.lookbackDates.current_range_start_date.query_date}" AND "${cadConfig.lookbackDates.current_range_end_date.query_date}"
   ${cadConfig.hourSegmentsWhereClause.current}`;
-  let pastQuery = `${baseQuery} "${cadConfig.lookbackDates.past_range_start_date.query_date}" AND "${cadConfig.lookbackDates.past_range_end_date.query_date}" ${cadConfig.hourSegmentsWhereClause.past}`;
+  const pastQuery = `${baseQuery} "${cadConfig.lookbackDates.past_range_start_date.query_date}" AND "${cadConfig.lookbackDates.past_range_end_date.query_date}" ${cadConfig.hourSegmentsWhereClause.past}`;
 
 
   if (CONFIG.is_debug_log) {
@@ -2003,7 +2003,7 @@ function aggAccountReportToCadResults(
     Logger.log("pastQuery accounts= " + JSON.stringify(pastQuery));
   }
 
-  let convBaseQuery = `SELECT customer.descriptive_name, metrics.conversions, segments.conversion_action_category ${cadConfig.hourSegmentInSelect} ${cadConfig.splitByNetworkQuery} FROM customer WHERE segments.date BETWEEN`;
+  const convBaseQuery = `SELECT customer.descriptive_name, metrics.conversions, segments.conversion_action_category ${cadConfig.hourSegmentInSelect} ${cadConfig.splitByNetworkQuery} FROM customer WHERE segments.date BETWEEN`;
 
   let currentConvQuery = `${convBaseQuery} "${cadConfig.lookbackDates.current_range_start_date.query_date}" AND "${cadConfig.lookbackDates.current_range_end_date.query_date}" ${cadConfig.hourSegmentsWhereClause.current}`;
   let pastConvQuery = `${convBaseQuery} "${cadConfig.lookbackDates.past_range_start_date.query_date}" AND "${cadConfig.lookbackDates.past_range_end_date.query_date}" ${cadConfig.hourSegmentsWhereClause.past}`;
@@ -2015,7 +2015,7 @@ function aggAccountReportToCadResults(
   storeAndMergeConversionReport(EntityType.Account, AdsApp.report(currentConvQuery, CONFIG.reporting_options), currentStats);
   Logger.log(LOG_PAST_DEVIDER);
 
-  let pastStats = storePerformanceReport(
+  const pastStats = storePerformanceReport(
     EntityType.Account,
     AdsApp.report(pastQuery, CONFIG.reporting_options)
   );
@@ -2030,7 +2030,7 @@ function aggAccountReportToCadResults(
 
   // single Row
   for (id in currentStats) {
-    let cadResultForEntity = new CadResultForEntity();
+    const cadResultForEntity = new CadResultForEntity();
     cadResultForEntity.relevant_label = relevantLabelsForCurrentAccount;
 
     cadResultForEntity.account.id = AdsApp.currentAccount().getCustomerId();
@@ -2069,8 +2069,8 @@ function aggAccountReportToCadResults(
 }
 
 function removeElementFromStringList(elementName, elementString) {
-  let elementsArray = elementString.split(",");
-  let indexToRemove = elementsArray.indexOf(elementName);
+  const elementsArray = elementString.split(",");
+  const indexToRemove = elementsArray.indexOf(elementName);
   // Use the splice() method to remove the element at the specified index
   if (indexToRemove > -1) {
     elementsArray.splice(indexToRemove, 1);
@@ -2116,11 +2116,11 @@ function isCurrentAccountSatisfyCadConfig(
  */
 function campaignReportToCadResults(entitieIdsForCurrentAccount, cadConfig) {
   let cadResults = [];
-  let entityIdsArr = Object.keys(entitieIdsForCurrentAccount);
+  const entityIdsArr = Object.keys(entitieIdsForCurrentAccount);
   if (!entityIdsArr.length) {
     return cadResults;
   }
-  let entityIds = entityIdsArr.join(",");
+  const entityIds = entityIdsArr.join(",");
   if (CONFIG.is_debug_log) {
     Logger.log(`Reporting for ids = ${JSON.stringify(entityIds)}`);
   }
@@ -2142,10 +2142,10 @@ function campaignReportToCadResults(entitieIdsForCurrentAccount, cadConfig) {
     }
   }
 
-  let currentQuery = `${specificCampaignsQuery} "${cadConfig.lookbackDates.current_range_start_date.query_date}" AND "${cadConfig.lookbackDates.current_range_end_date.query_date}" ${cadConfig.hourSegmentsWhereClause.current}`;
-  let pastQuery = `${specificCampaignsQuery} "${cadConfig.lookbackDates.past_range_start_date.query_date}" AND "${cadConfig.lookbackDates.past_range_end_date.query_date}"  ${cadConfig.hourSegmentsWhereClause.past}`;
+  const currentQuery = `${specificCampaignsQuery} "${cadConfig.lookbackDates.current_range_start_date.query_date}" AND "${cadConfig.lookbackDates.current_range_end_date.query_date}" ${cadConfig.hourSegmentsWhereClause.current}`;
+  const pastQuery = `${specificCampaignsQuery} "${cadConfig.lookbackDates.past_range_start_date.query_date}" AND "${cadConfig.lookbackDates.past_range_end_date.query_date}"  ${cadConfig.hourSegmentsWhereClause.past}`;
 
-  let convBaseQuery = `SELECT campaign.id, metrics.conversions, segments.conversion_action_category ${cadConfig.hourSegmentInSelect} ${cadConfig.splitByNetworkQuery} FROM campaign WHERE campaign.id IN (${entityIds}) AND segments.date BETWEEN`;
+  const convBaseQuery = `SELECT campaign.id, metrics.conversions, segments.conversion_action_category ${cadConfig.hourSegmentInSelect} ${cadConfig.splitByNetworkQuery} FROM campaign WHERE campaign.id IN (${entityIds}) AND segments.date BETWEEN`;
 
   let currentConvQuery = `${convBaseQuery} "${cadConfig.lookbackDates.current_range_start_date.query_date}" AND "${cadConfig.lookbackDates.current_range_end_date.query_date}" ${cadConfig.hourSegmentsWhereClause.current}`;
   let pastConvQuery = `${convBaseQuery} "${cadConfig.lookbackDates.past_range_start_date.query_date}" AND "${cadConfig.lookbackDates.past_range_end_date.query_date}" ${cadConfig.hourSegmentsWhereClause.past}`;
@@ -2155,7 +2155,7 @@ function campaignReportToCadResults(entitieIdsForCurrentAccount, cadConfig) {
     Logger.log("pastQuery = " + JSON.stringify(pastQuery));
   }
 
-  let currentStats = storePerformanceReport(
+  const currentStats = storePerformanceReport(
     EntityType.Campaign,
     AdsApp.report(currentQuery, CONFIG.reporting_options)
   );
@@ -2163,7 +2163,7 @@ function campaignReportToCadResults(entitieIdsForCurrentAccount, cadConfig) {
 
   Logger.log(LOG_PAST_DEVIDER);
 
-  let pastStats = storePerformanceReport(
+  const pastStats = storePerformanceReport(
     EntityType.Campaign,
     AdsApp.report(pastQuery, CONFIG.reporting_options)
   );
@@ -2176,8 +2176,8 @@ function campaignReportToCadResults(entitieIdsForCurrentAccount, cadConfig) {
   }
 
   // Row
-  for (campaignId of entityIdsArr) {
-    let cadSingleResult = new CadResultForEntity();
+  for (const campaignId of entityIdsArr) {
+    const cadSingleResult = new CadResultForEntity();
 
     cadSingleResult.relevant_label = entitieIdsForCurrentAccount[campaignId];
     cadSingleResult.account.id = AdsApp.currentAccount().getCustomerId();
@@ -2206,11 +2206,11 @@ function campaignReportToCadResults(entitieIdsForCurrentAccount, cadConfig) {
  */
 function adGroupReportToCadResults(entitieIdsForCurrentAccount, cadConfig) {
   let cadResults = [];
-  let entityIdsArr = Object.keys(entitieIdsForCurrentAccount);
+  const entityIdsArr = Object.keys(entitieIdsForCurrentAccount);
   if (!entityIdsArr.length) {
     return cadResults;
   }
-  let entityIds = entityIdsArr.join(",");
+  const entityIds = entityIdsArr.join(",");
   if (CONFIG.is_debug_log) {
     Logger.log(`Reporting for ids = ${JSON.stringify(entityIds)}`);
   }
@@ -2225,10 +2225,10 @@ function adGroupReportToCadResults(entitieIdsForCurrentAccount, cadConfig) {
     specificEntityQuery
   );
 
-  let currentQuery = `${specificEntityQuery} "${cadConfig.lookbackDates.current_range_start_date.query_date}" AND "${cadConfig.lookbackDates.current_range_end_date.query_date}" ${cadConfig.hourSegmentsWhereClause.current}`;
-  let pastQuery = `${specificEntityQuery} "${cadConfig.lookbackDates.past_range_start_date.query_date}" AND "${cadConfig.lookbackDates.past_range_end_date.query_date}"  ${cadConfig.hourSegmentsWhereClause.past}`;
+  const currentQuery = `${specificEntityQuery} "${cadConfig.lookbackDates.current_range_start_date.query_date}" AND "${cadConfig.lookbackDates.current_range_end_date.query_date}" ${cadConfig.hourSegmentsWhereClause.current}`;
+  const pastQuery = `${specificEntityQuery} "${cadConfig.lookbackDates.past_range_start_date.query_date}" AND "${cadConfig.lookbackDates.past_range_end_date.query_date}"  ${cadConfig.hourSegmentsWhereClause.past}`;
 
-  let convBaseQuery = `SELECT ad_group.id, metrics.conversions, segments.conversion_action_category ${cadConfig.hourSegmentInSelect} ${cadConfig.splitByNetworkQuery} FROM ad_group WHERE ad_group.id IN (${entityIds}) AND segments.date BETWEEN`;
+  const convBaseQuery = `SELECT ad_group.id, metrics.conversions, segments.conversion_action_category ${cadConfig.hourSegmentInSelect} ${cadConfig.splitByNetworkQuery} FROM ad_group WHERE ad_group.id IN (${entityIds}) AND segments.date BETWEEN`;
 
   let currentConvQuery = `${convBaseQuery} "${cadConfig.lookbackDates.current_range_start_date.query_date}" AND "${cadConfig.lookbackDates.current_range_end_date.query_date}" ${cadConfig.hourSegmentsWhereClause.current}`;
   let pastConvQuery = `${convBaseQuery} "${cadConfig.lookbackDates.past_range_start_date.query_date}" AND "${cadConfig.lookbackDates.past_range_end_date.query_date}" ${cadConfig.hourSegmentsWhereClause.past}`;
@@ -2239,7 +2239,7 @@ function adGroupReportToCadResults(entitieIdsForCurrentAccount, cadConfig) {
     Logger.log("pastQuery = " + JSON.stringify(pastQuery));
   }
 
-  let currentStats = storePerformanceReport(
+  const currentStats = storePerformanceReport(
     EntityType.AdGroup,
     AdsApp.report(currentQuery, CONFIG.reporting_options)
   );
@@ -2247,7 +2247,7 @@ function adGroupReportToCadResults(entitieIdsForCurrentAccount, cadConfig) {
 
   Logger.log(LOG_PAST_DEVIDER);
 
-  let pastStats = storePerformanceReport(
+  const pastStats = storePerformanceReport(
     EntityType.AdGroup,
     AdsApp.report(pastQuery, CONFIG.reporting_options)
   );
@@ -2260,8 +2260,8 @@ function adGroupReportToCadResults(entitieIdsForCurrentAccount, cadConfig) {
   }
 
   // Row
-  for (adGroupId of entityIdsArr) {
-    let cadSingleResult = new CadResultForEntity();
+  for (const adGroupId of entityIdsArr) {
+    const cadSingleResult = new CadResultForEntity();
 
     cadSingleResult.relevant_label = entitieIdsForCurrentAccount[adGroupId];
     cadSingleResult.account.id = AdsApp.currentAccount().getCustomerId();
@@ -2290,7 +2290,7 @@ function adGroupReportToCadResults(entitieIdsForCurrentAccount, cadConfig) {
  * @return {!Object} metric stats map.
  */
 function storePerformanceReport(entityStr, searchResults) {
-  let statsMap = {};
+  const statsMap = {};
   for (const row of searchResults.rows()) {
     let id;
     switch (entityStr) {
