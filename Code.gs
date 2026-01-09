@@ -99,7 +99,7 @@ class MetricResult {
  */
 const MetricTypes = {
   impressions: {
-    email: "Impressions",
+    readableName: "Impressions",
     isMonitored: true,
     shouldBeRounded: true,
     isFromGoogleAds: true,
@@ -107,7 +107,7 @@ const MetricTypes = {
     isWriteToSheet: true,
   },
   clicks: {
-    email: "Clicks",
+    readableName: "Clicks",
     isMonitored: true,
     shouldBeRounded: true,
     isFromGoogleAds: true,
@@ -115,7 +115,7 @@ const MetricTypes = {
     isWriteToSheet: true,
   },
   all_conversions: {
-    email: "All Conversions",
+    readableName: "All Conversions",
     isMonitored: true,
     shouldBeRounded: true,
     isFromGoogleAds: true,
@@ -123,7 +123,7 @@ const MetricTypes = {
     isWriteToSheet: true,
   },
   conversions: {
-    email: "conversions",
+    readableName: "Conversions",
     isMonitored: true,
     shouldBeRounded: true,
     isFromGoogleAds: true,
@@ -131,7 +131,7 @@ const MetricTypes = {
     isWriteToSheet: true,
   },
   cost_micros: {
-    email: "Cost",
+    readableName: "Cost",
     isMonitored: true,
     isMicro: true,
     isFromGoogleAds: true,
@@ -139,7 +139,7 @@ const MetricTypes = {
     isWriteToSheet: true,
   },
   cost_per_all_conversions: {
-    email: "CPA all",
+    readableName: "CPA all",
     isMonitored: true,
     isMicro: true,
     isFromGoogleAds: true,
@@ -147,7 +147,7 @@ const MetricTypes = {
     isWriteToSheet: true,
   },
   cost_per_conversion: {
-    email: "CPA",
+    readableName: "CPA",
     isMonitored: true,
     isMicro: true,
     isFromGoogleAds: true,
@@ -155,111 +155,105 @@ const MetricTypes = {
     isWriteToSheet: true,
   },
   ctr: {
-    email: "CTR",
+    readableName: "CTR",
     isMonitored: true,
     isFromGoogleAds: true,
     isWriteToSheet: true,
     isPercent: true,
   },
   all_conversions_from_interactions_rate: {
-    email: "CVR all",
+    readableName: "CVR all",
     isMonitored: true,
     isFromGoogleAds: true,
     isWriteToSheet: true,
   },
   conversions_from_interactions_rate: {
-    email: "CVR",
+    readableName: "CVR",
     isMonitored: true,
     isFromGoogleAds: true,
     isWriteToSheet: true,
   },
-
   average_cpc: {
-    email: "CPC",
+    readableName: "CPC",
     isMonitored: true,
     isMicro: true,
     isFromGoogleAds: true,
     isWriteToSheet: true,
   },
-
   roas_all: {
-    email: "ROAS all",
+    readableName: "ROAS all",
     isMonitored: true,
     shouldBeRounded: false,
     isWriteToSheet: true,
   },
   roas: {
-    email: "ROAS",
+    readableName: "ROAS",
     isMonitored: true,
     shouldBeRounded: false,
     isWriteToSheet: true,
   },
 
   all_conversions_value: {
-    email: "All conversions value",
+    readableName: "All Conversions Value",
     isMonitored: true,
     isFromGoogleAds: true,
     isCumulative: true,
     isWriteToSheet: true,
   },
-
   conversions_value: {
-    email: "Conversions value",
+    readableName: "Conversions Value",
     isMonitored: true,
     isFromGoogleAds: true,
     isCumulative: true,
     isWriteToSheet: true,
   },
-
   search_click_share: {
-    email: "Search click share",
+    readableName: "Search Click Share",
     isMonitored: true,
     isFromGoogleAds: true,
     isWriteToSheet: true,
   },
   average_cpm: {
-    email: "Avg CPM",
+    readableName: "Avg CPM",
     isMicro: true,
     isMonitored: true,
     isFromGoogleAds: true,
     isWriteToSheet: true,
   },
-
   average_cpv: {
-    email: "Avg CPV",
+    readableName: "Avg CPV",
     isMicro: true,
     isMonitored: true,
     isFromGoogleAds: true,
     isWriteToSheet: true,
   },
-
   video_view_rate: {
-    email: "Video View Rate",
+    readableName: "Video View Rate",
     isMonitored: true,
     isFromGoogleAds: true,
     isWriteToSheet: true,
   },
   installs: {
-    email: "Installs",
+    readableName: "Installs",
     isMonitored: true,
     shouldBeRounded: true,
     isCumulative: true,
     isWriteToSheet: true,
   },
   cost_per_install: {
-    email: "Cost per Install",
+    readableName: "Cost per Install",
     isMonitored: true,
     isWriteToSheet: true,
   },
   in_app_actions: {
-    email: "In-app actions",
+    readableName: "In-app actions",
     isMonitored: true,
     shouldBeRounded: true,
     isCumulative: true,
     isWriteToSheet: true,
   },
   cost_per_in_app_action: {
-    email: "Cost per In-app action",
+    readableName: "Cost per In-app action",
     isMonitored: true,
     isWriteToSheet: true,
   },
@@ -643,6 +637,7 @@ class CadResultForEntity {
       if (!this.allMetricsComparisons[metricType].metricAlertDirection)
         continue;
 
+      const metricReadableName = MetricTypes[metricType_name].readableName;
       const toStringFormatter = ToStringFormatter.getInstance();
       const currentValueStr = toStringFormatter.addNumberCommas(
         this.allMetricsComparisons[metricType].current
@@ -657,7 +652,7 @@ class CadResultForEntity {
         this.allMetricsComparisons[metricType].changePercent
       );
 
-      alertTextForEntity.push(`<tr><td> ${metricType} </td><td> ${currentValueStr} </td><td> ${pastAvgValueStr} </td><td>
+      alertTextForEntity.push(`<tr><td> ${metricReadableName} </td><td> ${currentValueStr} </td><td> ${pastAvgValueStr} </td><td>
 ${numericDeltaStr} </td><td style="color: ${this.getDeltaColorPercentage(
         percentageDeltaStr
       )};"> ${percentageDeltaStr} </td></tr>`);
