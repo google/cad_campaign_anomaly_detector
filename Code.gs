@@ -127,6 +127,14 @@ const MetricTypes = {
     isCumulative: true,
     isWriteToSheet: true,
   },
+  interactions: {
+    readableName: "Interactions",
+    isMonitored: false,
+    shouldBeRounded: true,
+    isFromGoogleAds: true,
+    isCumulative: true,
+    isWriteToSheet: false,
+  },
   all_conversions: {
     readableName: "All Conversions",
     isMonitored: true,
@@ -177,13 +185,13 @@ const MetricTypes = {
   all_conversions_from_interactions_rate: {
     readableName: "CVR all",
     isMonitored: true,
-    isFromGoogleAds: true,
+    isFromGoogleAds: false,
     isWriteToSheet: true,
   },
   conversions_from_interactions_rate: {
     readableName: "CVR",
     isMonitored: true,
-    isFromGoogleAds: true,
+    isFromGoogleAds: false,
     isWriteToSheet: true,
   },
   average_cpc: {
@@ -417,6 +425,18 @@ class CadResultForEntity {
         comparisonResultForSpecificMetric.current = this.safeDivide(currentStats[id], 'metrics.conversions_value', costMicros);
         break;
 
+      case 'conversions_from_interactions_rate':
+        comparisonResultForSpecificMetric.past = pastStats[id]?.[gAdsMetric]
+          ? this.safeDivide(pastStats[id], "metrics.conversions", "metrics.interactions") * 100
+          : 0;
+        comparisonResultForSpecificMetric.current = this.safeDivide(currentStats[id], "metrics.conversions", "metrics.interactions") * 100;
+
+      case 'all_conversions_from_interactions_rate':
+        comparisonResultForSpecificMetric.past = pastStats[id]?.[gAdsMetric]
+          ? this.safeDivide(pastStats[id], "metrics.all_conversions", "metrics.interactions") * 100
+          : 0;
+        comparisonResultForSpecificMetric.current = this.safeDivide(currentStats[id], "metrics.all_conversions", "metrics.interactions") * 100;
+
       case 'installs':
         comparisonResultForSpecificMetric.past = pastStats[id]?.[gAdsMetric] ?? 0;
         comparisonResultForSpecificMetric.current = currentStats[id]?.[gAdsMetric] ?? 0;
@@ -569,10 +589,10 @@ class CadResultForEntity {
           percentageDelta
         );
       } else if (
-        metricType.includes("cost_per_conversion") ||
-        metricType.includes("cost_micros") ||
-        metricType.includes("cost_per_install") ||
-        metricType.includes("cost_per_in_app_action")
+        metricType.includes(".cost_per_conversion") ||
+        metricType.includes(".cost_micros") ||
+        metricType.includes(".cost_per_install") ||
+        metricType.includes(".cost_per_in_app_action")
       ) {
         metricStrings = this.toMetricStrings(
           currentAvgValue,
@@ -583,7 +603,12 @@ class CadResultForEntity {
           "",
           2
         );
-      } else if (metricType.includes("ctr") || metricType.includes("roas")) {
+      } else if (
+        metricType.includes(".ctr") ||
+        metricType.includes(".roas") ||
+        metricType.includes(".conversions_from_interactions_rate") ||
+        metricType.includes(".all_conversions_from_interactions_rate")
+      ) {
         metricStrings = this.toMetricStrings(
           currentAvgValue,
           pastAvgValue,
