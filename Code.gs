@@ -29,6 +29,19 @@ const CONSTS = {
   ALL: "ALL",
 };
 
+const AD_NETWORK_TYPES = {
+  CONTENT: 'Display Network',
+  DISCOVER: 'Discover Feed',
+  GMAIL: 'Gmail',
+  GOOGLE_OWNED_CHANNELS: 'Google Owned Channels',
+  GOOGLE_TV: 'Google TV',
+  MAPS: 'Maps',
+  MIXED: 'Cross-network',
+  SEARCH: 'Google search',
+  SEARCH_PARTNERS: 'Search partners',
+  YOUTUBE: 'YouTube',
+}
+
 const NamedRanges = {
   RESULTS_SHEET_NAME: "results",
   EMAILS: "emails",
@@ -625,8 +638,11 @@ class CadResultForEntity {
       ? `: ${this.campaign.id} ${this.campaign.name}`
       : "";
 
+    let adNetworkTypeHeader = this.adNetworkType ? `(${AD_NETWORK_TYPES[this.adNetworkType]})` : '';
+
+
     let alertTextForEntity = [
-      `<br>Anomalies for: ${this.account.id} ${this.account.name} ${campaignHeader} ${adGroupHeader}
+      `<br>Anomalies for: ${this.account.id} ${this.account.name} ${campaignHeader} ${adGroupHeader} ${adNetworkTypeHeader}
       <br>(Only relevant metrics. For all metrics see the end of the email)
      <br><table style="width:50%;border:1px solid black;"><tr style="border:1px solid black;"><th style="text-align:left;border:1px solid black;">Metric</th><th style="text-align:left;border:1px solid black;">Current</th><th style="text-align:left;border:1px solid black;">Past</th> <th style="text-align:left;border:1px solid black;">Δ</th> <th style="text-align:left;border:1px solid black;">Δ%</th></tr>`,
     ];
@@ -772,6 +788,7 @@ ${numericDeltaStr} </td><td style="color: ${this.getDeltaColorPercentage(
       this.campaign.name,
       this.adGroup.id,
       this.adGroup.name,
+      this.adNetworkType ? AD_NETWORK_TYPES[this.adNetworkType] : '',
     ];
 
     console.log(
@@ -1451,7 +1468,7 @@ class SheetUtils {
           newStartingRow,
           NamedRanges.FIRST_DATA_COLUMN,
           newRows.length,
-          7 + 4 * metricListLength
+          8 + 4 * metricListLength
         )
         .setValues(newRows);
     }
@@ -1999,6 +2016,7 @@ function aggAccountReportToCadResults(
     cadResultForEntity.campaign.name = "";
     cadResultForEntity.adGroup.id = "";
     cadResultForEntity.adGroup.name = "";
+    cadResultForEntity.adNetworkType = currentStats[id]["segments.ad_network_type"] || "";
 
     cadResultForEntity.fillMetricComparisonResults(id, currentStats, pastStats, cadConfig);
 
