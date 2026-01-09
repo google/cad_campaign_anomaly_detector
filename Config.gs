@@ -37,6 +37,6 @@ const CONFIG = {
   reporting_options: {
     // Comment out the following line to default to the latest reporting
     // version.
-    apiVersion: "v20",
+    apiVersion: "v22",
   },
 };

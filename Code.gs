@@ -241,14 +241,14 @@ const MetricTypes = {
     isFromGoogleAds: true,
     isWriteToSheet: true,
   },
-  average_cpv: {
+  trueview_average_cpv: {
     readableName: "Avg CPV",
     isMicro: true,
     isMonitored: true,
     isFromGoogleAds: true,
     isWriteToSheet: true,
   },
-  video_view_rate: {
+  video_trueview_view_rate: {
     readableName: "Video View Rate",
     isMonitored: true,
     isFromGoogleAds: true,
