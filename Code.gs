@@ -2177,14 +2177,20 @@ function campaignReportToCadResults(entitieIdsForCurrentAccount, cadConfig) {
 
   // Row
   for (const campaignId of entityIdsArr) {
+    // If we have no stats for this campaign in either period, skip it.
+    if (!currentStats[campaignId] && !pastStats[campaignId]) {
+      continue;
+    }
     const cadSingleResult = new CadResultForEntity();
-
     cadSingleResult.relevant_label = entitieIdsForCurrentAccount[campaignId];
     cadSingleResult.account.id = AdsApp.currentAccount().getCustomerId();
-    cadSingleResult.account.name =
-      currentStats[campaignId]["customer.descriptive_name"];
-    cadSingleResult.campaign.id = currentStats[campaignId]["campaign.id"];
-    cadSingleResult.campaign.name = currentStats[campaignId]["campaign.name"];
+    cadSingleResult.account.name = AdsApp.currentAccount().getName();
+
+    // Safely get campaign details from whichever stats object has them
+    const statsSource = currentStats[campaignId] || pastStats[campaignId];
+    cadSingleResult.campaign.id = statsSource["campaign.id"];
+    cadSingleResult.campaign.name = statsSource["campaign.name"];
+
     cadSingleResult.fillMetricComparisonResults(
       campaignId,
       currentStats,
@@ -2261,15 +2267,22 @@ function adGroupReportToCadResults(entitieIdsForCurrentAccount, cadConfig) {
 
   // Row
   for (const adGroupId of entityIdsArr) {
+    // If we have no stats for this ad group in either period, skip it.
+    if (!currentStats[adGroupId] && !pastStats[adGroupId]) {
+      continue;
+    }
     const cadSingleResult = new CadResultForEntity();
-
     cadSingleResult.relevant_label = entitieIdsForCurrentAccount[adGroupId];
     cadSingleResult.account.id = AdsApp.currentAccount().getCustomerId();
-    cadSingleResult.account.name = currentStats[adGroupId]["customer.descriptive_name"];
-    cadSingleResult.campaign.id = currentStats[adGroupId]["campaign.id"];
-    cadSingleResult.campaign.name = currentStats[adGroupId]["campaign.name"];
-    cadSingleResult.adGroup.id = currentStats[adGroupId]["ad_group.id"];
-    cadSingleResult.adGroup.name = currentStats[adGroupId]["ad_group.name"];
+    cadSingleResult.account.name = AdsApp.currentAccount().getName();
+
+    // Safely get details from whichever stats object has them
+    const statsSource = currentStats[adGroupId] || pastStats[adGroupId];
+    cadSingleResult.campaign.id = statsSource["campaign.id"];
+    cadSingleResult.campaign.name = statsSource["campaign.name"];
+    cadSingleResult.adGroup.id = statsSource["ad_group.id"];
+    cadSingleResult.adGroup.name = statsSource["ad_group.name"];
+
     cadSingleResult.fillMetricComparisonResults(
       adGroupId,
       currentStats,
