@@ -2297,13 +2297,15 @@ function adGroupReportToCadResults(entitieIdsForCurrentAccount, cadConfig) {
 }
 
 /**
- * Stores base performance metrics from a report.
+ * Stores and aggregates base performance metrics from a report.
  * @param {string} entityStr Entity type string
  * @param {!Object} searchResults GAds search results
  * @return {!Object} metric stats map.
  */
 function storePerformanceReport(entityStr, searchResults) {
   const statsMap = {};
+  const metricFields = getGadsQueryFieldsAsArray();
+
   for (const row of searchResults.rows()) {
     let id;
     switch (entityStr) {
@@ -2317,14 +2319,22 @@ function storePerformanceReport(entityStr, searchResults) {
       id = `${id}_${row["segments.adNetworkType"]}`;
     }
 
-    if (CONFIG.is_debug_log) {
-      //Logger.log("Row from API for id = " + id + " row=" + JSON.stringify(row));
+    if (!statsMap[id]) {
+      // Initialize the entry with the first row encountered
+      statsMap[id] = row;
+      statsMap[id]['metrics.installs'] = 0;
+      statsMap[id]['metrics.in_app_actions'] = 0;
+    } else {
+      // Aggregation logic for subsequent hour rows
+      metricFields.forEach(field => {
+        const metricName = field.split('.')[1];
+        if (MetricTypes[metricName] && MetricTypes[metricName].isCumulative) {
+          const currentValue = parseFloat(statsMap[id][field]) || 0;
+          const newValue = parseFloat(row[field]) || 0;
+          statsMap[id][field] = currentValue + newValue;
+        }
+      });
     }
-    // Initialize object and add all metrics from the row.
-    statsMap[id] = row;
-    // Also initialize our custom metrics to 0.
-    statsMap[id]['metrics.installs'] = 0;
-    statsMap[id]['metrics.in_app_actions'] = 0;
   }
   return statsMap;
 }
@@ -2516,3 +2526,4 @@ class ToStringFormatter {
     return str.join(".");
   }
 }
+
